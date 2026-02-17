@@ -1,7 +1,4 @@
-export const metadata = {
-  title: "Reliance by Tajalli",
-  description: "Appliance Reliance MVP"
-};
+export const dynamic = "force-dynamic";
 
 export default function RootLayout({
   children,
@@ -10,7 +7,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body style={{ fontFamily: "Arial, sans-serif" }}>
+        {children}
+      </body>
     </html>
   );
 }
