@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Product } from "../lib/products";
 import { isDirectImageUrl } from "../lib/products";
 
@@ -27,21 +27,6 @@ function normalize(s: string) {
 
 function buildHay(p: Product) {
   return normalize(`${p.brand} ${p.model} ${p.category} ${p.tags} ${p.curated_category_label}`);
-}
-
-function highlight(text: string, q: string) {
-  const t = String(text || "");
-  const query = String(q || "").trim();
-  if (!query) return t;
-
-  const i = t.toLowerCase().indexOf(query.toLowerCase());
-  if (i < 0) return t;
-
-  const a = t.slice(0, i);
-  const b = t.slice(i, i + query.length);
-  const c = t.slice(i + query.length);
-
-  return `${a}${b}${c}`;
 }
 
 function ImgWithSkeleton({ src, alt }: { src: string; alt: string }) {
@@ -87,6 +72,8 @@ export default function CatalogClient({
   const [showInstallments, setShowInstallments] = useState(false);
   const [months, setMonths] = useState<3 | 6 | 12>(3);
 
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
   const query = q.trim();
 
   const filtered = useMemo(() => {
@@ -111,7 +98,6 @@ export default function CatalogClient({
     const queryN = normalize(query);
     if (!queryN || queryN.length < 2) return [];
 
-    // strongest matches first: brand+model prefix then contains
     const scored = products
       .map((p) => {
         const name = `${p.brand} ${p.model}`;
@@ -154,6 +140,14 @@ export default function CatalogClient({
     return { total, monthly };
   }
 
+  function goToBestMatch() {
+    const best = suggestions[0] || filtered[0];
+    if (!best) return;
+    // @ts-ignore
+    window.plausible?.("Search_Enter_Go", { props: { slug: best.slug } });
+    window.location.href = `/p/${best.slug}`;
+  }
+
   const showSuggestionBox = suggestions.length > 0 && query.trim().length >= 2;
 
   return (
@@ -167,10 +161,17 @@ export default function CatalogClient({
         <div className="flex flex-col md:flex-row gap-3 md:items-center">
           <div className="relative">
             <input
+              ref={inputRef}
               value={q}
               onChange={(e) => {
                 setQ(e.target.value);
                 setPage(1);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  goToBestMatch();
+                }
               }}
               placeholder="Search brand or model..."
               className="w-full md:w-80 rounded-xl border border-neutral-300 px-3 py-2 bg-white"
@@ -188,9 +189,7 @@ export default function CatalogClient({
                       window.plausible?.("Search_Suggestion_Click", { props: { slug: p.slug } });
                     }}
                   >
-                    <div className="text-sm font-medium">
-                      {highlight(`${p.brand} ${p.model}`, query)}
-                    </div>
+                    <div className="text-sm font-medium">{p.brand} {p.model}</div>
                     <div className="text-xs text-neutral-600">
                       {p.curated_category_label} • {money(p.retail_price ?? p.minimum_price)}
                     </div>
