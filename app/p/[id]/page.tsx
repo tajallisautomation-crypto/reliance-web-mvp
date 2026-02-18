@@ -12,30 +12,9 @@ const CREDIT_MULTIPLIERS: Record<number, number> = {
   12: 1.35,
 };
 
-function buildLongDescription(p: any) {
-  if (p.description && p.description.length > 120) return p.description;
-
-  return `${p.brand} ${p.model} is a reliable choice for customers who want long-term performance, stable operation, and after-sales peace of mind. 
-It is selected for Pakistan’s market conditions where voltage variation, heavy usage, and serviceability matter. 
-If you want a product that “just works” with a clear warranty path and predictable value, this model is a safe pick.`;
-}
-
-function buildUseCase(p: any) {
-  const cat = String(p.category || "").toLowerCase();
-  if (cat.includes("air")) return "Ideal for bedrooms, lounges, and offices where reliable cooling and energy efficiency are priorities.";
-  if (cat.includes("washing")) return "Ideal for family households needing consistent wash performance and durability.";
-  if (cat.includes("battery") || cat.includes("solar")) return "Ideal for backup power setups, solar storage, and load-shedding protection.";
-  return "Ideal for households and offices looking for dependable everyday performance with warranty-backed support.";
-}
-
-export async function generateMetadata({ params }: any) {
-  const p = await fetchProductBySlug(params.id);
-  if (!p) return { title: "Product not found - Reliance by Tajalli’s" };
-
-  const title = `${p.brand} ${p.model} Price in Pakistan | Reliance by Tajalli’s`;
-  const description = buildLongDescription(p).slice(0, 160);
-
-  return { title, description };
+function money(n?: number | null) {
+  if (!n) return "Price on request";
+  return `PKR ${Math.round(n).toLocaleString("en-PK")}`;
 }
 
 export default async function ProductPage({ params }: any) {
@@ -52,21 +31,20 @@ export default async function ProductPage({ params }: any) {
 
   const price = p.retail_price ?? p.minimum_price ?? 0;
 
-  const whatsappNumberDigits = "923354266238";
-  const msg = `I want: ${p.brand} ${p.model}\nPrice: PKR ${price}\nProduct Key: ${p.product_key}`;
-  const wa = `https://wa.me/${whatsappNumberDigits}?text=${encodeURIComponent(msg)}`;
+  const adminWA = "923354266238";
+  const msg =
+    `I want: ${p.brand} ${p.model}\n` +
+    `Price: PKR ${price}\n` +
+    `Product Key: ${p.product_key}`;
 
-  const longDesc = buildLongDescription(p);
-  const useCase = buildUseCase(p);
+  const wa = `https://wa.me/${adminWA}?text=${encodeURIComponent(msg)}`;
 
-  // JSON-LD (rich results)
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: `${p.brand} ${p.model}`,
     brand: { "@type": "Brand", name: p.brand },
     category: p.category,
-    description: longDesc,
     offers: {
       "@type": "Offer",
       priceCurrency: "PKR",
@@ -78,89 +56,87 @@ export default async function ProductPage({ params }: any) {
 
   return (
     <main className="max-w-6xl mx-auto p-6">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 
       <a href="/" className="text-sm underline">← Back to catalogue</a>
 
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-          <div className="h-80 bg-neutral-100 flex items-center justify-center rounded-xl overflow-hidden">
+      <div className="mt-6 grid md:grid-cols-2 gap-8">
+        <div className="rounded-2xl border bg-white p-4">
+          <div className="h-96 bg-neutral-100 flex items-center justify-center rounded-xl overflow-hidden">
             {isDirectImageUrl(p.image_url_1) ? (
-              <img src={p.image_url_1} alt={p.model} className="h-full w-full object-contain" />
+              <img
+                src={p.image_url_1}
+                alt={p.model}
+                className="h-full w-full object-contain"
+              />
             ) : (
-              <div className="text-xs text-neutral-600 text-center px-6">
-                No direct image available.
-                {p.image_url_1 ? (
-                  <div className="mt-2">
-                    <a className="underline" href={p.image_url_1} target="_blank">Open image search</a>
-                  </div>
-                ) : null}
-              </div>
+              <div className="text-sm text-neutral-500">No image available</div>
             )}
-          </div>
-
-          <div className="mt-3 text-xs text-neutral-600 flex justify-between">
-            <div>Warranty: {p.warranty || "—"}</div>
-            <div>{p.availability || "In Stock"}</div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-          <div className="text-xs text-neutral-600">{p.category}</div>
-          <h1 className="mt-1 text-2xl font-semibold">{p.brand} {p.model}</h1>
-
-          <div className="mt-3 text-2xl font-semibold">
-            PKR {price}
+        <div>
+          <div className="text-xs text-neutral-500">
+            {p.curated_category_label}
           </div>
 
-          <div className="mt-4 flex gap-3">
-            <a href={wa} target="_blank" className="rounded-xl bg-green-600 text-white px-5 py-3 text-sm font-medium hover:bg-green-700">
+          <h1 className="mt-1 text-2xl font-semibold">
+            {p.brand} {p.model}
+          </h1>
+
+          <div className="mt-3 text-3xl font-semibold">
+            {money(price)}
+          </div>
+
+          <div className="mt-4">
+            <a
+              href={wa}
+              target="_blank"
+              className="inline-block rounded-xl bg-green-600 text-white px-6 py-3 text-sm font-medium hover:bg-green-700"
+              onClick={() => {
+                // @ts-ignore
+                window.plausible?.("WhatsApp_Click", {
+                  props: { slug: p.slug, placement: "product_page" },
+                });
+              }}
+            >
               WhatsApp to order
             </a>
-            <a href="/" className="rounded-xl border border-neutral-300 px-5 py-3 text-sm hover:bg-neutral-50">
-              Continue browsing
-            </a>
           </div>
 
-          <div className="mt-6">
-            <div className="text-sm font-semibold">Ideal use case</div>
-            <p className="mt-2 text-sm text-neutral-800">{useCase}</p>
-          </div>
-
-          <div className="mt-6">
-            <div className="text-sm font-semibold">Overview</div>
-            <p className="mt-2 text-sm text-neutral-800 whitespace-pre-wrap">{longDesc}</p>
+          <div className="mt-6 text-sm text-neutral-700 whitespace-pre-wrap">
+            {p.description}
           </div>
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <section className="lg:col-span-2 rounded-2xl border border-neutral-200 bg-white p-6">
+      <div className="mt-10 grid lg:grid-cols-3 gap-6">
+        <section className="lg:col-span-2 border rounded-2xl bg-white p-6">
           <h2 className="text-lg font-semibold">Specifications</h2>
           {p.specifications ? (
-            <pre className="mt-3 text-sm text-neutral-800 whitespace-pre-wrap">{p.specifications}</pre>
+            <pre className="mt-3 text-sm whitespace-pre-wrap">
+              {p.specifications}
+            </pre>
           ) : (
-            <div className="mt-3 text-sm text-neutral-600">Specifications will be confirmed on WhatsApp.</div>
-          )}
-
-          {p.tags ? (
-            <div className="mt-6">
-              <div className="text-sm font-semibold">Tags</div>
-              <div className="mt-2 text-sm text-neutral-700">{p.tags}</div>
+            <div className="mt-3 text-sm text-neutral-600">
+              Specifications available on request.
             </div>
-          ) : null}
+          )}
         </section>
 
-        <section className="rounded-2xl border border-neutral-200 bg-white p-6">
+        <section className="border rounded-2xl bg-white p-6">
           <h2 className="text-lg font-semibold">Installment calculator</h2>
-          <div className="mt-3 text-sm text-neutral-600">Ceiling-to-500 rounding applied.</div>
 
           <div className="mt-4 space-y-3">
             {[3, 6, 12].map(m => {
-              const total = ceilTo500(price * (CREDIT_MULTIPLIERS[m] ?? 1));
+              const total = ceilTo500(price * CREDIT_MULTIPLIERS[m]);
               const monthly = ceilTo500(total / m);
+
               return (
-                <div key={m} className="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+                <div key={m} className="rounded-xl border bg-neutral-50 p-3">
                   <div className="font-medium">{m} months</div>
                   <div className="text-sm">Total: PKR {total}</div>
                   <div className="text-sm">Monthly: PKR {monthly}</div>
