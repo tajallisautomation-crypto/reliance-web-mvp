@@ -50,3 +50,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+<script defer data-domain="reliance.tajallis.com.pk" src="https://plausible.io/js/script.js"></script>
