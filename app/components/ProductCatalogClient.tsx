@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Product } from "@/lib/products";
-import { isDirectImageUrl } from "@/lib/products";
+import type { Product } from "../lib/products";
+import { isDirectImageUrl } from "../lib/products";
 
 function ceilTo500(n: number) {
   if (!Number.isFinite(n)) return n;
