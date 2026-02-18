@@ -1,3 +1,4 @@
+import React from "react";
 import { fetchProductByKey, isDirectImageUrl } from "../../../lib/products";
 
 export const dynamic = "force-dynamic";
@@ -35,8 +36,6 @@ export default async function ProductPage({ params }: any) {
       <a href="/" className="text-sm underline">← Back to products</a>
 
       <div className="grid md:grid-cols-2 gap-8 mt-4">
-
-        {/* IMAGE SECTION */}
         <div className="bg-white border rounded-xl p-6">
           <div className="h-80 flex items-center justify-center bg-neutral-100 rounded-lg overflow-hidden">
             {isDirectImageUrl(p.image_url_1) ? (
@@ -49,7 +48,6 @@ export default async function ProductPage({ params }: any) {
           </div>
         </div>
 
-        {/* INFO SECTION */}
         <div className="bg-white border rounded-xl p-6">
           <div className="text-sm text-neutral-500">{p.category}</div>
           <h1 className="text-2xl font-semibold mt-1">
@@ -78,8 +76,29 @@ export default async function ProductPage({ params }: any) {
         </div>
       </div>
 
-      {/* LONG DESCRIPTION */}
       <section className="mt-10 bg-white border rounded-xl p-6">
         <h2 className="text-xl font-semibold mb-3">Product Overview</h2>
         <p className="text-neutral-800 whitespace-pre-wrap">
-          {p.description || `${p.brand} ${p.model} is designed for reliable performance, durability, an
+          {p.description || `${p.brand} ${p.model} is designed for reliable performance, durability, and long-term usage.`}
+        </p>
+      </section>
+
+      <section className="mt-6 bg-white border rounded-xl p-6">
+        <h2 className="text-xl font-semibold mb-4">Installment Options</h2>
+
+        {[3, 6, 12].map((months) => {
+          const total = ceilTo500(basePrice * CREDIT_MULTIPLIERS[months]);
+          const monthly = ceilTo500(total / months);
+
+          return (
+            <div key={months} className="mb-4 p-4 bg-neutral-50 rounded-lg border">
+              <div className="font-medium">{months} Months Plan</div>
+              <div>Total: PKR {total}</div>
+              <div>Monthly Installment: PKR {monthly}</div>
+            </div>
+          );
+        })}
+      </section>
+    </main>
+  );
+}
