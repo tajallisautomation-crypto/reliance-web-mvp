@@ -83,3 +83,11 @@ export function isDirectImageUrl(url: string) {
   const u = String(url || "").trim();
   return /^https?:\/\//i.test(u) && /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(u);
 }
+export function slugify(text: string) {
+  return String(text)
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "") // remove special characters like |
+    .replace(/\s+/g, "-")     // spaces to dashes
+    .replace(/-+/g, "-")      // remove duplicate dashes
+    .trim();
+}
