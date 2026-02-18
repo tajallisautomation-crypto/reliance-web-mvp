@@ -45,7 +45,12 @@ export async function fetchProducts(): Promise<Product[]> {
     const product_key = String(get(r, "product_key") || get(r, "model")).trim();
     if (!product_key) continue;
 
-    out.push({
+    const model = String(get(r, "model")).trim();
+const brand = String(get(r, "brand")).trim();
+
+out.push({
+  slug: slugify(brand + " " + model),
+
       product_key,
       brand: String(get(r, "brand")).trim(),
       category: String(get(r, "category")).trim(),
