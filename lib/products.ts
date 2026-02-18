@@ -1,3 +1,5 @@
+// lib/products.ts
+
 import { parseCSV } from "./csv";
 
 export type Product = {
@@ -26,11 +28,22 @@ function toNum(v: any): number | null {
   return Number.isFinite(n) && !Number.isNaN(n) ? n : null;
 }
 
+export function slugify(text: string) {
+  return String(text)
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim();
+}
+
 export async function fetchProducts(): Promise<Product[]> {
   const res = await fetch(CSV_URL, { cache: "no-store" });
   const text = await res.text();
 
   const rows = parseCSV(text);
+  if (!rows.length) return [];
+
   const headers = rows[0].map(h => h.trim().toLowerCase());
 
   const idx = new Map<string, number>();
@@ -43,19 +56,18 @@ export async function fetchProducts(): Promise<Product[]> {
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
 
-    const product_key = String(get(r, "product_key") || get(r, "model")).trim();
-    if (!product_key) continue;
-
+    const brand = String(get(r, "brand")).trim();
     const model = String(get(r, "model")).trim();
-const brand = String(get(r, "brand")).trim();
+    const product_key = String(get(r, "product_key") || model).trim();
 
-out.push({
-  slug: slugify(brand + " " + model),
+    if (!brand || !model) continue;
 
+    out.push({
+      slug: slugify(brand + " " + model),
       product_key,
-      brand: String(get(r, "brand")).trim(),
+      brand,
       category: String(get(r, "category")).trim(),
-      model: String(get(r, "model")).trim(),
+      model,
       retail_price: toNum(get(r, "retail_price")),
       minimum_price: toNum(get(r, "cash_floor")),
       warranty: String(get(r, "warranty")).trim(),
@@ -72,28 +84,14 @@ out.push({
   return out;
 }
 
-export async function fetchProductByKey(key: string): Promise<Product | null> {
+export async function fetchProductBySlug(slug: string): Promise<Product | null> {
   const products = await fetchProducts();
-  const normalized = decodeURIComponent(key).trim().toLowerCase();
+  const normalized = String(slug).trim().toLowerCase();
 
-  return (
-    products.find(p =>
-      String(p.product_key)
-        .trim()
-        .toLowerCase() === normalized
-    ) || null
-  );
+  return products.find(p => p.slug === normalized) || null;
 }
 
 export function isDirectImageUrl(url: string) {
   const u = String(url || "").trim();
   return /^https?:\/\//i.test(u) && /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(u);
-}
-export function slugify(text: string) {
-  return String(text)
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "") // remove special characters like |
-    .replace(/\s+/g, "-")     // spaces to dashes
-    .replace(/-+/g, "-")      // remove duplicate dashes
-    .trim();
 }
