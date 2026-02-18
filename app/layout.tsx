@@ -1,53 +1,77 @@
 import "./globals.css";
+import type { Metadata } from "next";
+import Analytics from "../components/Analytics";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Reliance by Tajalli’s",
-  description: "Electronics, solar, and appliances in Pakistan. WhatsApp-first ordering.",
+  description:
+    "Solar systems, lithium batteries, air conditioners and home appliances in Pakistan. WhatsApp-backed sales and nationwide delivery.",
   metadataBase: new URL("https://reliance.tajallis.com.pk"),
+  openGraph: {
+    title: "Reliance by Tajalli’s",
+    description:
+      "Solar systems, lithium batteries, air conditioners and home appliances in Pakistan.",
+    url: "https://reliance.tajallis.com.pk",
+    siteName: "Reliance by Tajalli’s",
+    locale: "en_PK",
+    type: "website",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body className="bg-neutral-50 text-neutral-900 antialiased">
-        <div className="min-h-screen">
-          <header className="sticky top-0 z-30 border-b bg-white/80 backdrop-blur">
-            <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
-              <a href="/" className="flex items-center gap-2">
-                <div className="h-9 w-9 rounded-xl bg-neutral-900 text-white flex items-center justify-center font-semibold">
-                  R
-                </div>
-                <div className="leading-tight">
-                  <div className="font-semibold">Reliance</div>
-                  <div className="text-xs text-neutral-500">by Tajalli’s</div>
-                </div>
-              </a>
+      <body className="min-h-screen bg-white text-neutral-900 antialiased">
 
-              <a
-                href="https://wa.me/923354266238"
-                target="_blank"
-                className="rounded-xl bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
-              >
-                WhatsApp
-              </a>
+        {/* Analytics */}
+        <Analytics />
+
+        {/* Header */}
+        <header className="border-b border-neutral-200">
+          <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+            <a
+              href="/"
+              className="text-lg font-semibold tracking-tight"
+            >
+              Reliance by Tajalli’s
+            </a>
+
+            <a
+              href="https://wa.me/923702578788"
+              target="_blank"
+              className="text-sm bg-neutral-900 text-white px-4 py-2 rounded-xl hover:opacity-90"
+            >
+              WhatsApp Sales
+            </a>
+          </div>
+        </header>
+
+        {/* Main */}
+        <main className="max-w-6xl mx-auto px-6 py-8">
+          {children}
+        </main>
+
+        {/* Footer */}
+        <footer className="border-t border-neutral-200 mt-16">
+          <div className="max-w-6xl mx-auto px-6 py-6 text-sm text-neutral-600 flex justify-between">
+            <div>
+              © {new Date().getFullYear()} Tajalli’s Home Collection
             </div>
-          </header>
-
-          <main>{children}</main>
-
-          <footer className="border-t bg-white mt-12">
-            <div className="mx-auto max-w-7xl px-4 py-10 text-sm text-neutral-600">
-              <div className="flex flex-col gap-2">
-                <div className="font-medium text-neutral-800">Tajalli’s Home Collection</div>
-                <div>Free delivery across Pakistan. Full after-sales support.</div>
-                <div>Phone / WhatsApp: +92-335-4266238</div>
-                <div className="text-xs text-neutral-400 mt-2">© {new Date().getFullYear()} Reliance by Tajalli’s</div>
-              </div>
+            <div>
+              Nationwide Delivery • Pakistan
             </div>
-          </footer>
-        </div>
+          </div>
+        </footer>
+
       </body>
     </html>
   );
 }
-<script defer data-domain="reliance.tajallis.com.pk" src="https://plausible.io/js/script.js"></script>
