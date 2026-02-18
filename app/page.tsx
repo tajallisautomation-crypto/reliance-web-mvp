@@ -47,8 +47,11 @@ export default async function Page() {
       <ul>
         {products.slice(0, 10).map((p) => (
           <li key={p.product_key}>
-            {p.brand} {p.model} — {p.retail_price ?? p.minimum_price}
-          </li>
+  <a href={`/p/${encodeURIComponent(p.product_key)}`} style={{ textDecoration: "none" }}>
+    {p.brand} {p.model} — PKR {p.retail_price ?? p.minimum_price}
+  </a>
+</li>
+
         ))}
       </ul>
     </main>
