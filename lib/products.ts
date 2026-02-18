@@ -1,4 +1,3 @@
-// lib/products.ts
 import { parseCSV } from "./csv";
 import { curatedKeyFromRawCategory, curatedLabelFromKey } from "./categoryMap";
 
@@ -47,22 +46,27 @@ export function isDirectImageUrl(url: string) {
   return /^https?:\/\//i.test(u) && /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(u);
 }
 
-let _cache: { at: number; products: Product[] } | null = null;
-const CACHE_MS = 120_000;
+let _mem: { at: number; products: Product[] } | null = null;
+const MEM_CACHE_MS = 60_000;
+const REVALIDATE_SECONDS = 180;
 
 export async function fetchProducts(): Promise<Product[]> {
-  if (_cache && Date.now() - _cache.at < CACHE_MS) return _cache.products;
+  // fast in-memory cache inside a warm lambda
+  if (_mem && Date.now() - _mem.at < MEM_CACHE_MS) return _mem.products;
 
-  const res = await fetch(CSV_URL, { cache: "no-store" });
+  // Next.js data cache with revalidate (Vercel-friendly)
+  const res = await fetch(CSV_URL, {
+    next: { revalidate: REVALIDATE_SECONDS },
+  });
+
   const text = await res.text();
-
   const rows = parseCSV(text);
   if (rows.length < 2) {
-    _cache = { at: Date.now(), products: [] };
+    _mem = { at: Date.now(), products: [] };
     return [];
   }
 
-  const headers = rows[0].map(h => h.trim().toLowerCase());
+  const headers = rows[0].map((h) => h.trim().toLowerCase());
   const idx = new Map<string, number>();
   headers.forEach((h, i) => idx.set(h, i));
   const get = (r: string[], h: string) => r[idx.get(h) ?? -1] ?? "";
@@ -85,9 +89,7 @@ export async function fetchProducts(): Promise<Product[]> {
     const curated_category_key = curatedKeyFromRawCategory(category);
     const curated_category_label = curatedLabelFromKey(curated_category_key);
 
-    const retail_price =
-      toNum(get(r, "retail_price")) ?? toNum(get(r, "retail")) ?? null;
-
+    const retail_price = toNum(get(r, "retail_price")) ?? toNum(get(r, "retail")) ?? null;
     const minimum_price =
       toNum(get(r, "cash_floor")) ??
       toNum(get(r, "minimum_price")) ??
@@ -119,12 +121,12 @@ export async function fetchProducts(): Promise<Product[]> {
     });
   }
 
-  _cache = { at: Date.now(), products: out };
+  _mem = { at: Date.now(), products: out };
   return out;
 }
 
 export async function fetchProductBySlug(slug: string): Promise<Product | null> {
   const products = await fetchProducts();
   const normalized = String(slug).trim().toLowerCase();
-  return products.find(p => p.slug === normalized) || null;
+  return products.find((p) => p.slug === normalized) || null;
 }
