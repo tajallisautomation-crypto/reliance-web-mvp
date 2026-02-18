@@ -75,7 +75,7 @@ export async function fetchProducts(): Promise<Product[]> {
   return out;
 }
 
-export async function fetchProductByKey(key: string): Promise<Product | null> {
+export async function fetchProductByKey(key: string): {
   const products = await fetchProducts();
 
   const normalized = decodeURIComponent(key).trim().toLowerCase();
