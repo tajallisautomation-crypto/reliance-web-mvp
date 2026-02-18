@@ -1,6 +1,7 @@
 import { parseCSV } from "./csv";
 
 export type Product = {
+  slug: string;
   product_key: string;
   brand: string;
   category: string;
