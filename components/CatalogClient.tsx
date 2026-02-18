@@ -21,6 +21,58 @@ function money(n?: number | null) {
   return `PKR ${Math.round(n).toLocaleString("en-PK")}`;
 }
 
+function normalize(s: string) {
+  return String(s || "").toLowerCase().trim();
+}
+
+function buildHay(p: Product) {
+  return normalize(`${p.brand} ${p.model} ${p.category} ${p.tags} ${p.curated_category_label}`);
+}
+
+function highlight(text: string, q: string) {
+  const t = String(text || "");
+  const query = String(q || "").trim();
+  if (!query) return t;
+
+  const i = t.toLowerCase().indexOf(query.toLowerCase());
+  if (i < 0) return t;
+
+  const a = t.slice(0, i);
+  const b = t.slice(i, i + query.length);
+  const c = t.slice(i + query.length);
+
+  return `${a}${b}${c}`;
+}
+
+function ImgWithSkeleton({ src, alt }: { src: string; alt: string }) {
+  const [loaded, setLoaded] = useState(false);
+
+  if (!isDirectImageUrl(src)) {
+    return (
+      <div className="h-44 bg-neutral-100 flex items-center justify-center text-xs text-neutral-500">
+        No image
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-44 bg-neutral-100 relative overflow-hidden">
+      {!loaded ? (
+        <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-neutral-200 via-neutral-100 to-neutral-200" />
+      ) : null}
+
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        className={`h-full w-full object-contain transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
+      />
+    </div>
+  );
+}
+
 export default function CatalogClient({
   products,
   whatsappNumberDigits,
@@ -31,28 +83,51 @@ export default function CatalogClient({
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("featured");
   const [page, setPage] = useState(1);
+
   const [showInstallments, setShowInstallments] = useState(false);
   const [months, setMonths] = useState<3 | 6 | 12>(3);
 
-  const filtered = useMemo(() => {
-    const query = q.trim().toLowerCase();
+  const query = q.trim();
 
-    let list = products.filter(p => {
-      if (!query) return true;
-      const hay = `${p.brand} ${p.model} ${p.category} ${p.tags}`.toLowerCase();
-      return hay.includes(query);
+  const filtered = useMemo(() => {
+    const queryN = normalize(query);
+
+    let list = products.filter((p) => {
+      if (!queryN) return true;
+      return buildHay(p).includes(queryN);
     });
 
     const priceOf = (p: Product) => p.retail_price ?? p.minimum_price ?? 0;
 
     if (sort === "price_asc") list.sort((a, b) => priceOf(a) - priceOf(b));
     if (sort === "price_desc") list.sort((a, b) => priceOf(b) - priceOf(a));
-    if (sort === "name_asc") list.sort((a, b) =>
-      `${a.brand} ${a.model}`.localeCompare(`${b.brand} ${b.model}`)
-    );
+    if (sort === "name_asc")
+      list.sort((a, b) => `${a.brand} ${a.model}`.localeCompare(`${b.brand} ${b.model}`));
 
     return list;
-  }, [products, q, sort]);
+  }, [products, query, sort]);
+
+  const suggestions = useMemo(() => {
+    const queryN = normalize(query);
+    if (!queryN || queryN.length < 2) return [];
+
+    // strongest matches first: brand+model prefix then contains
+    const scored = products
+      .map((p) => {
+        const name = `${p.brand} ${p.model}`;
+        const hay = buildHay(p);
+        const prefix = normalize(name).startsWith(queryN) ? 2 : 0;
+        const contains = hay.includes(queryN) ? 1 : 0;
+        const score = prefix + contains;
+        return { p, score, name };
+      })
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+      .slice(0, 8)
+      .map((x) => x.p);
+
+    return scored;
+  }, [products, query]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -79,28 +154,51 @@ export default function CatalogClient({
     return { total, monthly };
   }
 
+  const showSuggestionBox = suggestions.length > 0 && query.trim().length >= 2;
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
         <div>
-          <h1 className="text-2xl md:text-3xl font-semibold">
-            Product Catalogue
-          </h1>
-          <div className="text-sm text-neutral-600 mt-1">
-            {filtered.length} products available
-          </div>
+          <h1 className="text-2xl md:text-3xl font-semibold">Product Catalogue</h1>
+          <div className="text-sm text-neutral-600 mt-1">{filtered.length} products available</div>
         </div>
 
-        <div className="flex gap-3">
-          <input
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Search brand or model..."
-            className="w-72 rounded-xl border border-neutral-300 px-3 py-2 bg-white"
-          />
+        <div className="flex flex-col md:flex-row gap-3 md:items-center">
+          <div className="relative">
+            <input
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search brand or model..."
+              className="w-full md:w-80 rounded-xl border border-neutral-300 px-3 py-2 bg-white"
+            />
+
+            {showSuggestionBox ? (
+              <div className="absolute z-30 mt-2 w-full rounded-2xl border border-neutral-200 bg-white shadow-xl overflow-hidden">
+                {suggestions.map((p) => (
+                  <a
+                    key={p.slug}
+                    href={`/p/${p.slug}`}
+                    className="block px-3 py-2 hover:bg-neutral-50"
+                    onClick={() => {
+                      // @ts-ignore
+                      window.plausible?.("Search_Suggestion_Click", { props: { slug: p.slug } });
+                    }}
+                  >
+                    <div className="text-sm font-medium">
+                      {highlight(`${p.brand} ${p.model}`, query)}
+                    </div>
+                    <div className="text-xs text-neutral-600">
+                      {p.curated_category_label} • {money(p.retail_price ?? p.minimum_price)}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            ) : null}
+          </div>
 
           <select
             value={sort}
@@ -117,15 +215,11 @@ export default function CatalogClient({
 
       <div className="mt-4 flex items-center gap-4 text-sm">
         <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={showInstallments}
-            onChange={() => setShowInstallments(v => !v)}
-          />
+          <input type="checkbox" checked={showInstallments} onChange={() => setShowInstallments((v) => !v)} />
           Show installment estimate
         </label>
 
-        {showInstallments && (
+        {showInstallments ? (
           <select
             value={months}
             onChange={(e) => setMonths(Number(e.target.value) as any)}
@@ -135,7 +229,9 @@ export default function CatalogClient({
             <option value={6}>6 months</option>
             <option value={12}>12 months</option>
           </select>
-        )}
+        ) : null}
+
+        <div className="text-xs text-neutral-500">Ceiling-to-500 rounding.</div>
       </div>
 
       <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -152,43 +248,26 @@ export default function CatalogClient({
                 href={`/p/${p.slug}`}
                 onClick={() => {
                   // @ts-ignore
-                  window.plausible?.("Product_Open", {
-                    props: { slug: p.slug },
-                  });
+                  window.plausible?.("Product_Open", { props: { slug: p.slug, placement: "catalog_card" } });
                 }}
               >
-                <div className="h-44 bg-neutral-100 flex items-center justify-center overflow-hidden">
-                  {isDirectImageUrl(p.image_url_1) ? (
-                    <img
-                      src={p.image_url_1}
-                      alt={p.model}
-                      className="h-full w-full object-contain"
-                    />
-                  ) : (
-                    <div className="text-xs text-neutral-500">
-                      No image
-                    </div>
-                  )}
-                </div>
+                <ImgWithSkeleton src={p.image_url_1} alt={`${p.brand} ${p.model}`} />
 
                 <div className="p-4">
-                  <div className="text-xs text-neutral-500">
-                    {p.curated_category_label}
+                  <div className="text-xs text-neutral-500">{p.curated_category_label}</div>
+                  <div className="mt-1 font-semibold leading-snug">{p.brand} {p.model}</div>
+
+                  <div className="mt-2 text-lg font-semibold">{money(price)}</div>
+
+                  <div className="mt-1 text-xs text-neutral-600">
+                    {p.availability || "In Stock"} {p.warranty ? `• ${p.warranty}` : ""}
                   </div>
 
-                  <div className="mt-1 font-semibold leading-snug">
-                    {p.brand} {p.model}
-                  </div>
-
-                  <div className="mt-2 text-lg font-semibold">
-                    {money(price)}
-                  </div>
-
-                  {inst && (
+                  {inst ? (
                     <div className="mt-2 text-xs text-neutral-600">
-                      {months} months: PKR {inst.monthly}/mo
+                      {months} months: PKR {inst.monthly.toLocaleString("en-PK")}/mo
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </a>
 
@@ -199,9 +278,7 @@ export default function CatalogClient({
                   className="flex-1 text-center rounded-xl bg-green-600 text-white py-2 text-sm hover:bg-green-700"
                   onClick={() => {
                     // @ts-ignore
-                    window.plausible?.("WhatsApp_Click", {
-                      props: { slug: p.slug, placement: "catalog" },
-                    });
+                    window.plausible?.("WhatsApp_Click", { props: { slug: p.slug, placement: "catalog_card" } });
                   }}
                 >
                   WhatsApp
@@ -210,6 +287,10 @@ export default function CatalogClient({
                 <a
                   href={`/p/${p.slug}`}
                   className="flex-1 text-center rounded-xl border border-neutral-300 py-2 text-sm hover:bg-neutral-50"
+                  onClick={() => {
+                    // @ts-ignore
+                    window.plausible?.("Product_Open", { props: { slug: p.slug, placement: "catalog_details" } });
+                  }}
                 >
                   Details
                 </a>
@@ -222,7 +303,7 @@ export default function CatalogClient({
       <div className="mt-10 flex items-center justify-between">
         <button
           disabled={safePage <= 1}
-          onClick={() => setPage(p => Math.max(1, p - 1))}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
           className="rounded-xl border px-4 py-2 text-sm disabled:opacity-40"
         >
           Previous
@@ -234,7 +315,7 @@ export default function CatalogClient({
 
         <button
           disabled={safePage >= totalPages}
-          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
           className="rounded-xl border px-4 py-2 text-sm disabled:opacity-40"
         >
           Next
