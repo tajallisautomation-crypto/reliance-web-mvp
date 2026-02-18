@@ -2,13 +2,15 @@ export const dynamic = "force-dynamic";
 
 async function getProducts() {
   try {
-    const res = await fetch(
-      `${process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : ""}/api/reliance/products`,
-      { cache: "no-store" }
-    );
+    const res = await fetch("http://localhost:3000/api/reliance/products", {
+      cache: "no-store",
+    });
+
+    if (!res.ok) return { products: [] };
+
     return await res.json();
   } catch {
-    return { ok: false, products: [] };
+    return { products: [] };
   }
 }
 
