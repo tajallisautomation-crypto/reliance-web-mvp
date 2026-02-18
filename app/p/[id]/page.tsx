@@ -1,4 +1,4 @@
-import { fetchProductByKey, isDirectImageUrl } from "@/lib/products";
+import { fetchProductByKey, isDirectImageUrl } from "../../../lib/products";
 
 export const dynamic = "force-dynamic";
 
