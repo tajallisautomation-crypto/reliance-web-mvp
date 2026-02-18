@@ -31,21 +31,51 @@ export default async function Product({ params }: any) {
   }
 
   return (
-    <main style={{ padding: 24, fontFamily: "system-ui" }}>
-      <h2>{product.brand} {product.model}</h2>
-      <div>Category: {product.category}</div>
-      <div>Price: PKR {product.retail_price || product.cash_floor}</div>
-      <div>Warranty: {product.warranty}</div>
+    <main style={{ padding: 40, fontFamily: "system-ui" }}>
+      <h1>{product.brand} {product.model}</h1>
 
-      <p style={{ marginTop: 20 }}>{product.description}</p>
+      <div style={{ marginTop: 20 }}>
+        <img
+          src={product.image_url_1}
+          alt={product.model}
+          style={{ maxWidth: 400 }}
+        />
+      </div>
 
-      <h3>Buy via WhatsApp</h3>
-      <a
-        href={`https://wa.me/923354266238?text=I'm interested in ${product.brand} ${product.model}`}
-        target="_blank"
-      >
-        <button>Chat on WhatsApp</button>
-      </a>
+      <div style={{ marginTop: 20 }}>
+        <strong>Category:</strong> {product.category}
+      </div>
+
+      <div>
+        <strong>Price:</strong> PKR {product.retail_price || product.cash_floor}
+      </div>
+
+      <div>
+        <strong>Warranty:</strong> {product.warranty}
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <strong>Description:</strong>
+        <p>{product.description}</p>
+      </div>
+
+      <div>
+        <strong>Specifications:</strong>
+        <pre style={{ whiteSpace: "pre-wrap" }}>
+          {product.specifications}
+        </pre>
+      </div>
+
+      <div style={{ marginTop: 30 }}>
+        <a
+          href={`https://wa.me/923354266238?text=I'm interested in ${product.brand} ${product.model}`}
+          target="_blank"
+        >
+          <button style={{ padding: "10px 20px", fontSize: 16 }}>
+            Chat on WhatsApp
+          </button>
+        </a>
+      </div>
     </main>
   );
 }
