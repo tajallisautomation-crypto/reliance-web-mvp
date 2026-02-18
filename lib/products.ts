@@ -75,7 +75,7 @@ export async function fetchProducts(): Promise<Product[]> {
   return out;
 }
 
-export async function fetchProductByKey(key: string): {
+export async function fetchProductByKey(key: string): Promise<Product | null> {
   const products = await fetchProducts();
 
   const normalized = decodeURIComponent(key).trim().toLowerCase();
@@ -87,8 +87,4 @@ export async function fetchProductByKey(key: string): {
         .toLowerCase() === normalized
     ) || null
   );
-}
-: Promise<Product | null> {
-  const products = await fetchProducts();
-  return products.find(p => p.product_key === key) || null;
 }
