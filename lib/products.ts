@@ -78,6 +78,9 @@ export async function fetchProducts(): Promise<Product[]> {
 export async function fetchProductByKey(key: string): Promise<Product | null> {
   const products = await fetchProducts();
 
+  console.log("PARAM KEY:", key);
+  console.log("FIRST 3 KEYS:", products.slice(0, 3).map(p => p.product_key));
+
   const normalized = decodeURIComponent(key).trim().toLowerCase();
 
   return (
