@@ -1,35 +1,51 @@
 export const dynamic = "force-dynamic";
 
+const CSV_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAOZShzlaPpI0_7RT2xIU1178t-BTsoqf7FBYUk9NZeG0n2NiHebAU1KxkFg6LTm0YQeyhytLESTWC/pub?gid=2007149046&single=true&output=csv";
+
+function parseCSV(text: string) {
+  const lines = text.split(/\r?\n/).filter(Boolean);
+  const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+
+  return lines.slice(1).map(line => {
+    const values = line.split(",");
+    const obj: any = {};
+    headers.forEach((h, i) => {
+      obj[h] = values[i] || "";
+    });
+    return obj;
+  });
+}
+
 export default async function Product({ params }: any) {
-  const res = await fetch(
-    `${process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : ""}/api/reliance/products`,
-    { cache: "no-store" }
+  const res = await fetch(CSV_URL, { cache: "no-store" });
+  const text = await res.text();
+  const rows = parseCSV(text);
+
+  const product = rows.find(
+    (r: any) => (r.product_key || r.model) === params.id
   );
 
-  const data = await res.json();
-  const p = (data.products || []).find((x: any) => x.product_key === params.id);
-
-  if (!p) return <main style={{ padding: 24 }}>Not found</main>;
+  if (!product) {
+    return <main style={{ padding: 24 }}>Product not found</main>;
+  }
 
   return (
     <main style={{ padding: 24, fontFamily: "system-ui" }}>
-      <h2>{p.brand} {p.model}</h2>
-      <div>Category: {p.category}</div>
-      <div>Price: PKR {p.retail_price ?? p.minimum_price}</div>
+      <h2>{product.brand} {product.model}</h2>
+      <div>Category: {product.category}</div>
+      <div>Price: PKR {product.retail_price || product.cash_floor}</div>
+      <div>Warranty: {product.warranty}</div>
 
-      <h3>Checkout</h3>
-      <form action="/api/order" method="post">
-        <input type="hidden" name="product_id" value={p.product_key} />
-        <input name="phone" placeholder="Your WhatsApp number" />
-        <select name="mode">
-          <option value="bank">Bank transfer</option>
-          <option value="cod">Cash on delivery</option>
-          <option value="card">Card</option>
-          <option value="credit">Installments</option>
-          <option value="lead">Just contact me</option>
-        </select>
-        <button type="submit">Place order</button>
-      </form>
+      <p style={{ marginTop: 20 }}>{product.description}</p>
+
+      <h3>Buy via WhatsApp</h3>
+      <a
+        href={`https://wa.me/923354266238?text=I'm interested in ${product.brand} ${product.model}`}
+        target="_blank"
+      >
+        <button>Chat on WhatsApp</button>
+      </a>
     </main>
   );
 }
