@@ -1,31 +1,33 @@
-// lib/products.ts
-
 import { parseCSV } from "./csv";
+import { mapToCuratedCategory } from "./categoryMap";
 
 export type Product = {
   slug: string;
   product_key: string;
   brand: string;
   category: string;
+  curated_category: string;
   model: string;
+
   retail_price: number | null;
   minimum_price: number | null;
-  warranty: string;
+
   availability: string;
+  warranty: string;
+
   image_url_1: string;
   image_url_2: string;
+
   description: string;
   specifications: string;
   tags: string;
-  updated_at: string;
 };
 
-export const CSV_URL =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAOZShzlaPpI0_7RT2xIU1178t-BTsoqf7FBYUk9NZeG0n2NiHebAU1KxkFg6LTm0YQeyhytLESTWC/pub?gid=2007149046&single=true&output=csv";
+export const CSV_URL = "YOUR_CSV_URL";
 
 function toNum(v: any): number | null {
   const n = Number(String(v ?? "").replace(/[^\d.]/g, ""));
-  return Number.isFinite(n) && !Number.isNaN(n) ? n : null;
+  return Number.isFinite(n) ? n : null;
 }
 
 export function slugify(text: string) {
@@ -37,61 +39,63 @@ export function slugify(text: string) {
     .trim();
 }
 
+let _cache: { at: number; products: Product[] } | null = null;
+
 export async function fetchProducts(): Promise<Product[]> {
+  if (_cache && Date.now() - _cache.at < 120000) return _cache.products;
+
   const res = await fetch(CSV_URL, { cache: "no-store" });
   const text = await res.text();
 
   const rows = parseCSV(text);
-  if (!rows.length) return [];
+  if (rows.length < 2) return [];
 
   const headers = rows[0].map(h => h.trim().toLowerCase());
-
   const idx = new Map<string, number>();
   headers.forEach((h, i) => idx.set(h, i));
-
   const get = (r: string[], h: string) => r[idx.get(h) ?? -1] ?? "";
 
   const out: Product[] = [];
+  const seen = new Set<string>();
 
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
 
-    const brand = String(get(r, "brand")).trim();
-    const model = String(get(r, "model")).trim();
-    const product_key = String(get(r, "product_key") || model).trim();
+    const brand = get(r, "brand");
+    const model = get(r, "model");
 
     if (!brand || !model) continue;
 
+    const slugBase = slugify(`${brand} ${model}`);
+    const slug = seen.has(slugBase) ? `${slugBase}-${i}` : slugBase;
+    seen.add(slug);
+
+    const rawCategory = get(r, "category");
+
     out.push({
-      slug: slugify(brand + " " + model),
-      product_key,
+      slug,
+      product_key: get(r, "product_key") || model,
       brand,
-      category: String(get(r, "category")).trim(),
       model,
+      category: rawCategory,
+      curated_category: mapToCuratedCategory(rawCategory),
       retail_price: toNum(get(r, "retail_price")),
       minimum_price: toNum(get(r, "cash_floor")),
-      warranty: String(get(r, "warranty")).trim(),
-      availability: String(get(r, "availability")).trim(),
-      image_url_1: String(get(r, "image_url_1")).trim(),
-      image_url_2: String(get(r, "image_url_2")).trim(),
-      description: String(get(r, "description")).trim(),
-      specifications: String(get(r, "specifications")).trim(),
-      tags: String(get(r, "tags")).trim(),
-      updated_at: String(get(r, "updated_at")).trim(),
+      availability: get(r, "availability") || "In Stock",
+      warranty: get(r, "warranty"),
+      image_url_1: get(r, "image_url_1"),
+      image_url_2: get(r, "image_url_2"),
+      description: get(r, "description"),
+      specifications: get(r, "specifications"),
+      tags: get(r, "tags"),
     });
   }
 
+  _cache = { at: Date.now(), products: out };
   return out;
 }
 
-export async function fetchProductBySlug(slug: string): Promise<Product | null> {
+export async function fetchProductBySlug(slug: string) {
   const products = await fetchProducts();
-  const normalized = String(slug).trim().toLowerCase();
-
-  return products.find(p => p.slug === normalized) || null;
-}
-
-export function isDirectImageUrl(url: string) {
-  const u = String(url || "").trim();
-  return /^https?:\/\//i.test(u) && /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(u);
+  return products.find(p => p.slug === slug) || null;
 }
