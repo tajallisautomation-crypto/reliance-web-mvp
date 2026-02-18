@@ -1,5 +1,5 @@
-import ProductCatalogClient from "../../components/ProductCatalogClient";
-import { fetchProducts } from "../../lib/products";
+import ProductCatalogClient from "../components/ProductCatalogClient";
+import { fetchProducts } from "../lib/products";
 
 export const dynamic = "force-dynamic";
 
