@@ -5,3 +5,19 @@
 :root {
   color-scheme: light;
 }
+html {
+  scroll-behavior: smooth;
+}
+
+button,
+a {
+  transition: all 0.2s ease-in-out;
+}
+
+img {
+  transition: transform 0.3s ease;
+}
+
+img:hover {
+  transform: scale(1.03);
+}
