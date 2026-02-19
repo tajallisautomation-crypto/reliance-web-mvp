@@ -69,23 +69,30 @@ export function safeImage(url?: string): SafeImage {
 }
 
 /* ===================================================== */
-/* SEARCH + MATCH LOGIC (FIX FOR YOUR ERROR) */
+/* SEARCH + MATCH LOGIC (FIXED SIGNATURE) */
 /* ===================================================== */
 
-export function suggest(products: Product[], query: string): Product[] {
+export function suggest(
+  products: Product[],
+  query: string,
+  limit: number = 6
+): Product[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
 
-  return products
-    .filter(p =>
-      `${p.brand} ${p.model} ${p.category} ${p.tags}`
-        .toLowerCase()
-        .includes(q)
-    )
-    .slice(0, 6);
+  const results = products.filter(p =>
+    `${p.brand} ${p.model} ${p.category} ${p.tags}`
+      .toLowerCase()
+      .includes(q)
+  );
+
+  return results.slice(0, limit);
 }
 
-export function bestMatch(products: Product[], query: string): Product | null {
+export function bestMatch(
+  products: Product[],
+  query: string
+): Product | null {
   const q = query.trim().toLowerCase();
   if (!q) return null;
 
