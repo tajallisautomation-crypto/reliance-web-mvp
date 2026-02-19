@@ -25,6 +25,8 @@ export interface Product {
   description?: string;
   specifications?: string;
   tags?: string;
+
+  updated_at?: string;   // ← FIX ADDED
 }
 
 export type SafeImage = {
@@ -33,13 +35,12 @@ export type SafeImage = {
 };
 
 export function slugify(value: string) {
-  // keep deterministic, URL-safe
   return encodeURIComponent(
     value
       .trim()
       .toLowerCase()
       .replace(/\s+/g, "-")
-      .replace(/[^\w\-|]+/g, "") // allow | because your product_key uses it
+      .replace(/[^\w\-|]+/g, "")
       .replace(/-+/g, "-")
   );
 }
@@ -51,10 +52,6 @@ export function isDirectImageUrl(url?: string) {
   return /\.(jpg|jpeg|png|webp)(\?.*)?$/i.test(u);
 }
 
-/**
- * Always returns a stable object so callers can use .src and .isDirect
- * without TypeScript drift.
- */
 export function safeImage(url?: string): SafeImage {
   const src = String(url || "").trim();
   return {
@@ -84,10 +81,8 @@ export async function fetchProducts(): Promise<Product[]> {
       const model = String(row["Model"] || "").trim();
       const rawCategory = String(row["Category"] || "").trim();
 
-      // your sheet already has Product_Key; use it for stable routing
       const slug = slugify(product_key);
 
-      // availability may have been misspelled previously in sheet exports
       const availability =
         String(row["Availability"] || row["Availibility"] || "").trim() || "In Stock";
 
@@ -97,7 +92,7 @@ export async function fetchProducts(): Promise<Product[]> {
         brand,
         model,
         category: rawCategory,
-        curated_category: rawCategory, // safe default (you can curate later)
+        curated_category: rawCategory,
 
         retail_price: toNum(row["Retail_Price"]),
         minimum_price: toNum(row["Minimum_Price"]),
@@ -111,6 +106,8 @@ export async function fetchProducts(): Promise<Product[]> {
         description: String(row["Description"] || "").trim(),
         specifications: String(row["Specifications"] || "").trim(),
         tags: String(row["Tags"] || "").trim(),
+
+        updated_at: String(row["Updated_At"] || "").trim() || undefined,
       } as Product;
     })
     .filter(Boolean) as Product[];
@@ -119,7 +116,6 @@ export async function fetchProducts(): Promise<Product[]> {
 export async function fetchProductBySlug(slug: string): Promise<Product | null> {
   const products = await fetchProducts();
   const decoded = decodeURIComponent(slug);
-  // slug is encodeURIComponent(product_key) so match by slug OR product_key
   return (
     products.find((p) => p.slug === slug) ||
     products.find((p) => p.product_key === decoded) ||
