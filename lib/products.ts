@@ -1,11 +1,8 @@
 import { parseCsv } from "./csv";
 
 export const CSV_URL =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAOZShzlaPpI0_7RT2xIU1178t-BTsoqf7FBYUk9NZeG0n2NiHebAU1KxkFg6LTm0YQeyhytLESTWC/pub?gid=2007149046&single=true&output=csv";
-
-/* ===================================================== */
-/* TYPES */
-/* ===================================================== */
+  process.env.WEBSITE_FEED_CSV_URL ||
+  "PUT_YOUR_PUBLISHED_WEBSITE_FEED_CSV_URL_HERE";
 
 export interface Product {
   product_key: string;
@@ -13,43 +10,41 @@ export interface Product {
 
   brand: string;
   model: string;
-
   category: string;
-  curated_category?: string;
 
-  retail_price?: number;
+  cost_price?: number;
   minimum_price?: number;
+  retail_price?: number;
+  cash_floor?: number;
+
+  credit_3m_total?: number;
+  credit_3m_monthly?: number;
+  credit_6m_total?: number;
+  credit_6m_monthly?: number;
+  credit_12m_total?: number;
+  credit_12m_monthly?: number;
+
+  availability?: string;
 
   warranty?: string;
-  availability?: string;
+  tags?: string;
+  description?: string;
+  specifications?: string;
 
   image_url_1?: string;
   image_url_2?: string;
 
-  description?: string;
-  specifications?: string;
-  tags?: string;
+  publish_status?: string;
+  missing_fields?: string;
 
   updated_at?: string;
 }
 
-export type SafeImage = {
-  src: string;
-  isDirect: boolean;
-};
+export type SafeImage = { src: string; isDirect: boolean };
 
-/* ===================================================== */
-/* BASIC HELPERS */
-/* ===================================================== */
-
-export function slugify(value: string) {
+export function slugify(v: string) {
   return encodeURIComponent(
-    value
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^\w\-|]+/g, "")
-      .replace(/-+/g, "-")
+    v.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^\w\-|]+/g, "")
   );
 }
 
@@ -62,58 +57,8 @@ export function isDirectImageUrl(url?: string) {
 
 export function safeImage(url?: string): SafeImage {
   const src = String(url || "").trim();
-  return {
-    src,
-    isDirect: isDirectImageUrl(src),
-  };
+  return { src, isDirect: isDirectImageUrl(src) };
 }
-
-/* ===================================================== */
-/* SEARCH + MATCH LOGIC (FIXED SIGNATURE) */
-/* ===================================================== */
-
-export function suggest(
-  products: Product[],
-  query: string,
-  limit: number = 6
-): Product[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return [];
-
-  const results = products.filter(p =>
-    `${p.brand} ${p.model} ${p.category} ${p.tags}`
-      .toLowerCase()
-      .includes(q)
-  );
-
-  return results.slice(0, limit);
-}
-
-export function bestMatch(
-  products: Product[],
-  query: string
-): Product | null {
-  const q = query.trim().toLowerCase();
-  if (!q) return null;
-
-  const exact = products.find(p =>
-    `${p.brand} ${p.model}`.toLowerCase() === q
-  );
-
-  if (exact) return exact;
-
-  const partial = products.find(p =>
-    `${p.brand} ${p.model} ${p.category}`
-      .toLowerCase()
-      .includes(q)
-  );
-
-  return partial || null;
-}
-
-/* ===================================================== */
-/* FETCH LOGIC */
-/* ===================================================== */
 
 function toNum(v: any): number | undefined {
   const s = String(v ?? "").replace(/,/g, "").trim();
@@ -122,62 +67,82 @@ function toNum(v: any): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+export function suggest(products: Product[], query: string, limit = 8): Product[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return products
+    .filter((p) =>
+      `${p.brand} ${p.model} ${p.category} ${p.tags}`.toLowerCase().includes(q)
+    )
+    .slice(0, limit);
+}
+
+export function bestMatch(products: Product[], query: string): Product | null {
+  const q = query.trim().toLowerCase();
+  if (!q) return null;
+  return (
+    products.find((p) => `${p.brand} ${p.model}`.toLowerCase() === q) ||
+    products.find((p) =>
+      `${p.brand} ${p.model} ${p.category}`.toLowerCase().includes(q)
+    ) ||
+    null
+  );
+}
+
 export async function fetchProducts(): Promise<Product[]> {
   const res = await fetch(CSV_URL, { cache: "no-store" });
   const text = await res.text();
   const rows = parseCsv(text);
 
-  return rows
+  const all = rows
     .map((row: any) => {
       const product_key = String(row["Product_Key"] || "").trim();
       if (!product_key) return null;
 
-      const brand = String(row["Brand"] || "").trim();
-      const model = String(row["Model"] || "").trim();
-      const rawCategory = String(row["Category"] || "").trim();
-
-      const slug = slugify(product_key);
-
-      const availability =
-        String(row["Availability"] || row["Availibility"] || "").trim() ||
-        "In Stock";
+      const publish = String(row["Publish_Status"] || "").trim().toUpperCase();
 
       return {
         product_key,
-        slug,
-        brand,
-        model,
-        category: rawCategory,
-        curated_category: rawCategory,
+        slug: slugify(product_key),
+        brand: String(row["Brand"] || "").trim(),
+        category: String(row["Category"] || "").trim(),
+        model: String(row["Model"] || "").trim(),
 
-        retail_price: toNum(row["Retail_Price"]),
+        cost_price: toNum(row["Cost_Price"]),
         minimum_price: toNum(row["Minimum_Price"]),
+        retail_price: toNum(row["Retail_Price"]),
+        cash_floor: toNum(row["Cash_Floor"]),
+
+        credit_3m_total: toNum(row["Credit_3M_Total"]),
+        credit_3m_monthly: toNum(row["Credit_3M_Monthly"]),
+        credit_6m_total: toNum(row["Credit_6M_Total"]),
+        credit_6m_monthly: toNum(row["Credit_6M_Monthly"]),
+        credit_12m_total: toNum(row["Credit_12M_Total"]),
+        credit_12m_monthly: toNum(row["Credit_12M_Monthly"]),
+
+        availability: String(row["Availability"] || "").trim(),
 
         warranty: String(row["Warranty"] || "").trim(),
-        availability,
+        tags: String(row["Tags"] || "").trim(),
+        description: String(row["Description"] || "").trim(),
+        specifications: String(row["Specifications"] || "").trim(),
 
         image_url_1: String(row["Image_URL_1"] || "").trim(),
         image_url_2: String(row["Image_URL_2"] || "").trim(),
 
-        description: String(row["Description"] || "").trim(),
-        specifications: String(row["Specifications"] || "").trim(),
-        tags: String(row["Tags"] || "").trim(),
-
+        publish_status: publish,
+        missing_fields: String(row["Missing_Fields"] || "").trim(),
         updated_at: String(row["Updated_At"] || "").trim() || undefined,
       } as Product;
     })
     .filter(Boolean) as Product[];
+
+  // Only LIVE products appear anywhere
+  return all.filter((p) => String(p.publish_status || "").toUpperCase() === "LIVE");
 }
 
-export async function fetchProductBySlug(
-  slug: string
-): Promise<Product | null> {
+export async function fetchProductBySlug(slug: string): Promise<Product | null> {
   const products = await fetchProducts();
   const decoded = decodeURIComponent(slug);
-
-  return (
-    products.find(p => p.slug === slug) ||
-    products.find(p => p.product_key === decoded) ||
-    null
-  );
+  return products.find((p) => p.slug === slug || p.product_key === decoded) || null;
 }
