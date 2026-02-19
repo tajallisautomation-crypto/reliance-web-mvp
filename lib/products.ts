@@ -2,7 +2,7 @@ import { parseCsv } from "./csv";
 
 export const CSV_URL =
   process.env.WEBSITE_FEED_CSV_URL ||
-  "PUT_YOUR_PUBLISHED_WEBSITE_FEED_CSV_URL_HERE";
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAOZShzlaPpI0_7RT2xIU1178t-BTsoqf7FBYUk9NZeG0n2NiHebAU1KxkFg6LTm0YQeyhytLESTWC/pub?gid=2007149046&single=true&output=csv";
 
 export interface Product {
   product_key: string;
