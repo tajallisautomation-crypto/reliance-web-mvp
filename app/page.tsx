@@ -1,6 +1,6 @@
 import Hero from "../components/Hero";
-import BrandStrip from "../components/BrandStrip";
-import BannerRotator from "../components/BannerRotator";
+import LogoBannerRail from "../components/LogoBannerRail";
+import PromoBanners from "../components/PromoBanners";
 import CatalogClient from "../components/CatalogClient";
 import { fetchProducts } from "../lib/products";
 
@@ -8,17 +8,14 @@ export default async function Page() {
   const products = await fetchProducts();
 
   return (
-    <>
-      <BannerRotator />
+    <main>
       <Hero />
-      <BrandStrip />
+      <LogoBannerRail />
+      <PromoBanners />
 
-      <div id="catalogue">
-        <CatalogClient
-          products={products}
-          whatsappNumberDigits="923354266238"
-        />
-      </div>
-    </>
+      <section id="catalogue" className="mx-auto max-w-7xl px-4 pb-20">
+        <CatalogClient products={products} whatsappNumberDigits="923354266238" />
+      </section>
+    </main>
   );
 }
