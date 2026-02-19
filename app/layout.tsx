@@ -1,19 +1,21 @@
 import "./globals.css";
-import type { Metadata } from "next";
-import Analytics from "../components/Analytics";
+import FloatingWhatsApp from "../components/FloatingWhatsApp";
 
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.SITE_URL || "https://reliance.tajallis.com.pk"),
+export const metadata = {
   title: "Reliance by Tajalli’s",
-  description: "Product catalogue powered by Tajalli’s Home Collection.",
+  description: "Premium Appliances & Solar Solutions in Pakistan",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body className="bg-neutral-50 text-neutral-900">
-        <Analytics />
+      <body className="bg-gradient-to-br from-neutral-50 via-white to-neutral-100 text-neutral-900 antialiased">
         {children}
+        <FloatingWhatsApp />
       </body>
     </html>
   );
