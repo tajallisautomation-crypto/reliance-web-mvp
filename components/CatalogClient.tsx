@@ -251,7 +251,8 @@ export default function CatalogClient({
 
               <div className="px-4 pb-4 flex gap-2">
                 <a
-                  className="flex-1 text-center rounded-xl bg-green-600 text-white py-2 text-sm hover:bg-green-700"
+                  className="flex-1 text-center rounded-xl bg-gradient-to-r from-green-600 to-green-700 text-white py-2 text-sm hover:brightness-110 transition"
+
                   href={waLink(p)}
                   target="_blank"
                 >
