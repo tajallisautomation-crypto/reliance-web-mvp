@@ -1,23 +1,29 @@
-import { fetchProducts } from "../lib/products";
 import CatalogClient from "../components/CatalogClient";
+import { fetchProducts } from "../lib/products";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
+export default async function Page() {
   const products = await fetchProducts();
 
+  const adminWhatsapp = process.env.ADMIN_WHATSAPP || "923354266238";
+  const defaultWhatsapp = process.env.DEFAULT_WHATSAPP || "923702578788";
+
   return (
-    <main className="min-h-screen">
-      <div className="mx-auto max-w-7xl px-4 pt-8">
-        <div className="text-2xl font-semibold">Reliance by Tajalli’s</div>
-        <div className="text-sm text-neutral-600 mt-1">
-          Total Products: {products.length}
+    <main>
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="text-2xl md:text-3xl font-semibold">Reliance by Tajalli’s</div>
+          <div className="text-sm text-neutral-600 mt-1">
+            Total Products: {products.length}
+          </div>
         </div>
       </div>
 
       <CatalogClient
         products={products}
-        whatsappNumberDigits={process.env.NEXT_PUBLIC_DEFAULT_WA || "923702578788"}
+        adminWhatsappDigits={adminWhatsapp}
+        whatsappNumberDigits={defaultWhatsapp}
       />
     </main>
   );
