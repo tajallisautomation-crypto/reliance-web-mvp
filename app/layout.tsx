@@ -1,18 +1,18 @@
 import "./globals.css";
+import type { Metadata } from "next";
 import Analytics from "../components/Analytics";
-import FloatingWhatsApp from "../components/FloatingWhatsApp";
 
-export const metadata = {
+export const metadata: Metadata = {
+  metadataBase: new URL(process.env.SITE_URL || "https://reliance.tajallis.com.pk"),
   title: "Reliance by Tajalli’s",
-  description: "Appliances, solar, and services with cash & installment options."
+  description: "Product catalogue powered by Tajalli’s Home Collection.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
+      <body className="bg-neutral-50 text-neutral-900">
         <Analytics />
-        <FloatingWhatsApp />
         {children}
       </body>
     </html>
