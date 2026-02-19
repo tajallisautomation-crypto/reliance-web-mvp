@@ -204,7 +204,8 @@ export default function CatalogClient({
           const img = safeImage(p.image_url_1);
 
           return (
-            <div key={p.product_key} className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition">
+            <div key={p.product_key} className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition"
+>
               <a href={`/p/${p.slug}`} className="block">
                 <div className="h-44 bg-neutral-100 flex items-center justify-center overflow-hidden relative">
                   {img.isDirect ? (
