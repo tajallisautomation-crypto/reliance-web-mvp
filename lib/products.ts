@@ -27,74 +27,102 @@ export interface Product {
   tags?: string;
 }
 
-/* ============================= */
-/* Helpers */
-/* ============================= */
+export type SafeImage = {
+  src: string;
+  isDirect: boolean;
+};
 
 export function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^\w-]+/g, "")
-    .replace(/--+/g, "-");
+  // keep deterministic, URL-safe
+  return encodeURIComponent(
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^\w\-|]+/g, "") // allow | because your product_key uses it
+      .replace(/-+/g, "-")
+  );
 }
 
 export function isDirectImageUrl(url?: string) {
   if (!url) return false;
-  return /\.(jpg|jpeg|png|webp)$/i.test(url);
+  const u = url.trim().toLowerCase();
+  if (!(u.startsWith("http://") || u.startsWith("https://"))) return false;
+  return /\.(jpg|jpeg|png|webp)(\?.*)?$/i.test(u);
 }
 
-/* This fixes your current error */
-export function safeImage(url?: string) {
-  if (!url) return null;
-  return isDirectImageUrl(url) ? url : null;
+/**
+ * Always returns a stable object so callers can use .src and .isDirect
+ * without TypeScript drift.
+ */
+export function safeImage(url?: string): SafeImage {
+  const src = String(url || "").trim();
+  return {
+    src,
+    isDirect: isDirectImageUrl(src),
+  };
 }
 
-/* ============================= */
-/* Fetch Logic */
-/* ============================= */
+function toNum(v: any): number | undefined {
+  const s = String(v ?? "").replace(/,/g, "").trim();
+  if (!s) return undefined;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : undefined;
+}
 
 export async function fetchProducts(): Promise<Product[]> {
   const res = await fetch(CSV_URL, { cache: "no-store" });
   const text = await res.text();
   const rows = parseCsv(text);
 
-  return rows.map((row: any) => {
-    const product_key = row["Product_Key"] || "";
-    const brand = row["Brand"] || "";
-    const model = row["Model"] || "";
-    const rawCategory = row["Category"] || "";
+  return rows
+    .map((row: any) => {
+      const product_key = String(row["Product_Key"] || "").trim();
+      if (!product_key) return null;
 
-    const slug =
-      product_key ||
-      slugify(`${brand}-${model}`);
+      const brand = String(row["Brand"] || "").trim();
+      const model = String(row["Model"] || "").trim();
+      const rawCategory = String(row["Category"] || "").trim();
 
-    return {
-      product_key,
-      slug,
-      brand,
-      model,
-      category: rawCategory,
-      curated_category: rawCategory,
+      // your sheet already has Product_Key; use it for stable routing
+      const slug = slugify(product_key);
 
-      retail_price: Number(row["Retail_Price"]) || undefined,
-      minimum_price: Number(row["Minimum_Price"]) || undefined,
+      // availability may have been misspelled previously in sheet exports
+      const availability =
+        String(row["Availability"] || row["Availibility"] || "").trim() || "In Stock";
 
-      warranty: row["Warranty"] || "",
-      availability: row["Availability"] || "",
+      return {
+        product_key,
+        slug,
+        brand,
+        model,
+        category: rawCategory,
+        curated_category: rawCategory, // safe default (you can curate later)
 
-      image_url_1: row["Image_URL_1"] || "",
-      image_url_2: row["Image_URL_2"] || "",
+        retail_price: toNum(row["Retail_Price"]),
+        minimum_price: toNum(row["Minimum_Price"]),
 
-      description: row["Description"] || "",
-      specifications: row["Specifications"] || "",
-      tags: row["Tags"] || "",
-    };
-  });
+        warranty: String(row["Warranty"] || "").trim(),
+        availability,
+
+        image_url_1: String(row["Image_URL_1"] || "").trim(),
+        image_url_2: String(row["Image_URL_2"] || "").trim(),
+
+        description: String(row["Description"] || "").trim(),
+        specifications: String(row["Specifications"] || "").trim(),
+        tags: String(row["Tags"] || "").trim(),
+      } as Product;
+    })
+    .filter(Boolean) as Product[];
 }
 
-export async function fetchProductBySlug(slug: string) {
+export async function fetchProductBySlug(slug: string): Promise<Product | null> {
   const products = await fetchProducts();
-  return products.find(p => p.slug === slug) || null;
+  const decoded = decodeURIComponent(slug);
+  // slug is encodeURIComponent(product_key) so match by slug OR product_key
+  return (
+    products.find((p) => p.slug === slug) ||
+    products.find((p) => p.product_key === decoded) ||
+    null
+  );
 }
