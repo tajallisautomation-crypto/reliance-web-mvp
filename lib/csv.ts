@@ -1,19 +1,15 @@
-export function parseCSV(text: string): string[][] {
+export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
-  let current = "";
+  let cur = "";
   let inQuotes = false;
 
-  // normalize line endings
-  const s = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-
-  for (let i = 0; i < s.length; i++) {
-    const ch = s[i];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
 
     if (ch === '"') {
-      // handle escaped quotes ""
-      if (inQuotes && s[i + 1] === '"') {
-        current += '"';
+      if (inQuotes && text[i + 1] === '"') {
+        cur += '"';
         i++;
       } else {
         inQuotes = !inQuotes;
@@ -21,29 +17,26 @@ export function parseCSV(text: string): string[][] {
       continue;
     }
 
-    if (ch === "," && !inQuotes) {
-      row.push(current);
-      current = "";
+    if (!inQuotes && ch === ",") {
+      row.push(cur);
+      cur = "";
       continue;
     }
 
-    if (ch === "\n" && !inQuotes) {
-      row.push(current);
-      rows.push(row.map(v => v.trim()));
+    if (!inQuotes && (ch === "\n" || ch === "\r")) {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      row.push(cur);
+      cur = "";
+      rows.push(row);
       row = [];
-      current = "";
       continue;
     }
 
-    current += ch;
+    cur += ch;
   }
 
-  // last cell
-  if (current.length || row.length) {
-    row.push(current);
-    rows.push(row.map(v => v.trim()));
-  }
+  row.push(cur);
+  rows.push(row);
 
-  // drop empty trailing lines
   return rows.filter(r => r.some(cell => String(cell || "").trim() !== ""));
 }
