@@ -1,39 +1,29 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import type { Product } from "../lib/products";
-import { isDirectImageUrl } from "../lib/products";
+import { bestMatch, safeImage, suggest } from "../lib/products";
 
 function ceilTo500(n: number) {
   return Math.ceil(n / 500) * 500;
 }
 
-const CREDIT_MULTIPLIERS: Record<number, number> = { 3: 1.12, 6: 1.2, 12: 1.35 };
+const CREDIT_MULTIPLIERS: Record<number, number> = {
+  3: 1.12,
+  6: 1.20,
+  12: 1.35,
+};
+
 const PAGE_SIZE = 24;
-
-function bestMatch(products: Product[], query: string) {
-  const q = query.trim().toLowerCase();
-  if (!q) return null;
-
-  const scored = products.map(p => {
-    const hay = `${p.brand} ${p.model} ${p.category} ${p.tags}`.toLowerCase();
-    let s = 0;
-    if (hay.includes(q)) s += 10;
-    if (`${p.brand} ${p.model}`.toLowerCase().startsWith(q)) s += 20;
-    if (p.model.toLowerCase().startsWith(q)) s += 25;
-    if (p.brand.toLowerCase().startsWith(q)) s += 15;
-    return { p, s };
-  }).sort((a,b) => b.s - a.s);
-
-  return scored[0]?.s ? scored[0].p : null;
-}
 
 export default function CatalogClient({
   products,
   whatsappNumberDigits,
+  adminWhatsappDigits,
 }: {
   products: Product[];
   whatsappNumberDigits: string;
+  adminWhatsappDigits: string;
 }) {
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("all");
@@ -70,15 +60,6 @@ export default function CatalogClient({
     return list;
   }, [products, q, category, sort]);
 
-  const suggestions = useMemo(() => {
-    const query = q.trim().toLowerCase();
-    if (!query) return [];
-    const list = products
-      .filter(p => (`${p.brand} ${p.model} ${p.category}`.toLowerCase().includes(query)))
-      .slice(0, 8);
-    return list;
-  }, [products, q]);
-
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
 
@@ -86,6 +67,18 @@ export default function CatalogClient({
     const start = (safePage - 1) * PAGE_SIZE;
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, safePage]);
+
+  const suggestions = useMemo(() => suggest(products, q, 8), [products, q]);
+
+  useEffect(() => {
+    function onDocClick(e: any) {
+      if (!inputRef.current) return;
+      if (e.target && inputRef.current.contains(e.target)) return;
+      setShowSug(false);
+    }
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, []);
 
   function waLink(p: Product) {
     const price = p.retail_price ?? "";
@@ -100,24 +93,11 @@ export default function CatalogClient({
     return { total, monthly };
   }
 
-  function goToProduct(p: Product) {
-    window.location.href = `/p/${encodeURIComponent(p.product_key)}`;
+  function goBestMatch() {
+    const p = bestMatch(products, q);
+    if (!p) return;
+    window.location.href = `/p/${p.slug}`;
   }
-
-  function onEnter() {
-    const bm = bestMatch(products, q);
-    if (bm) goToProduct(bm);
-  }
-
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      if (!inputRef.current) return;
-      if (e.target instanceof Node && inputRef.current.contains(e.target)) return;
-      setShowSug(false);
-    };
-    document.addEventListener("click", onDoc);
-    return () => document.removeEventListener("click", onDoc);
-  }, []);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -129,29 +109,41 @@ export default function CatalogClient({
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-3 md:items-center relative">
-          <div className="relative">
+        <div className="flex flex-col md:flex-row gap-3 md:items-center">
+          <div className="relative w-full md:w-96">
             <input
               ref={inputRef}
               value={q}
-              onChange={(e) => { setQ(e.target.value); setPage(1); setShowSug(true); }}
               onFocus={() => setShowSug(true)}
-              onKeyDown={(e) => { if (e.key === "Enter") onEnter(); }}
+              onChange={(e) => { setQ(e.target.value); setPage(1); setShowSug(true); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  goBestMatch();
+                }
+              }}
               placeholder="Search brand, model, category..."
-              className="w-full md:w-80 rounded-xl border border-neutral-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-neutral-200"
+              className="w-full rounded-xl border border-neutral-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-neutral-200"
             />
-            {showSug && suggestions.length > 0 && (
-              <div className="absolute z-30 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-lg overflow-hidden">
+
+            {showSug && q.trim() && suggestions.length > 0 && (
+              <div className="absolute z-50 mt-2 w-full rounded-xl border border-neutral-200 bg-white shadow-lg overflow-hidden">
                 {suggestions.map(s => (
-                  <button
+                  <a
                     key={s.product_key}
-                    onClick={() => goToProduct(s)}
-                    className="w-full text-left px-3 py-2 hover:bg-neutral-50"
+                    href={`/p/${s.slug}`}
+                    className="block px-3 py-2 hover:bg-neutral-50 text-sm"
                   >
-                    <div className="text-sm font-medium">{s.brand} {s.model}</div>
-                    <div className="text-xs text-neutral-500">{s.category} • PKR {s.retail_price ?? "—"}</div>
-                  </button>
+                    <div className="font-medium">{s.brand} {s.model}</div>
+                    <div className="text-xs text-neutral-600">{s.category} • PKR {s.retail_price ?? "—"}</div>
+                  </a>
                 ))}
+                <button
+                  onClick={goBestMatch}
+                  className="w-full text-left px-3 py-2 text-sm border-t hover:bg-neutral-50"
+                >
+                  Enter → open best match
+                </button>
               </div>
             )}
           </div>
@@ -209,16 +201,19 @@ export default function CatalogClient({
           const price = p.retail_price ?? null;
           const inst = showInstallments && price ? credit(p) : null;
 
+          const img = safeImage(p.image_url_1);
+
           return (
             <div key={p.product_key} className="rounded-2xl border border-neutral-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition">
-              <a href={`/p/${encodeURIComponent(p.product_key)}`} className="block">
-                <div className="h-44 bg-neutral-100 flex items-center justify-center overflow-hidden">
-                  {isDirectImageUrl(p.image_url_1) ? (
+              <a href={`/p/${p.slug}`} className="block">
+                <div className="h-44 bg-neutral-100 flex items-center justify-center overflow-hidden relative">
+                  {img.isDirect ? (
                     <img
-                      loading="lazy"
-                      src={p.image_url_1}
+                      src={img.src}
                       alt={p.model}
+                      loading="lazy"
                       className="h-full w-full object-contain"
+                      style={{ background: "linear-gradient(90deg, rgba(0,0,0,0.03), rgba(0,0,0,0.06), rgba(0,0,0,0.03))" }}
                     />
                   ) : (
                     <div className="text-xs text-neutral-600 text-center px-5">
@@ -263,7 +258,7 @@ export default function CatalogClient({
                 </a>
                 <a
                   className="flex-1 text-center rounded-xl border border-neutral-300 py-2 text-sm hover:bg-neutral-50"
-                  href={`/p/${encodeURIComponent(p.product_key)}`}
+                  href={`/p/${p.slug}`}
                 >
                   Details
                 </a>
@@ -293,6 +288,10 @@ export default function CatalogClient({
         >
           Next
         </button>
+      </div>
+
+      <div className="mt-10 text-xs text-neutral-500">
+        Admin support: <a className="underline" href={`https://wa.me/${adminWhatsappDigits}`} target="_blank">WhatsApp</a>
       </div>
     </div>
   );
