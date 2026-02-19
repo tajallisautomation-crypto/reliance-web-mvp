@@ -27,7 +27,11 @@ export interface Product {
   tags?: string;
 }
 
-function slugify(value: string) {
+/* ============================= */
+/* Helpers */
+/* ============================= */
+
+export function slugify(value: string) {
   return value
     .toLowerCase()
     .trim()
@@ -40,6 +44,16 @@ export function isDirectImageUrl(url?: string) {
   if (!url) return false;
   return /\.(jpg|jpeg|png|webp)$/i.test(url);
 }
+
+/* This fixes your current error */
+export function safeImage(url?: string) {
+  if (!url) return null;
+  return isDirectImageUrl(url) ? url : null;
+}
+
+/* ============================= */
+/* Fetch Logic */
+/* ============================= */
 
 export async function fetchProducts(): Promise<Product[]> {
   const res = await fetch(CSV_URL, { cache: "no-store" });
@@ -62,7 +76,7 @@ export async function fetchProducts(): Promise<Product[]> {
       brand,
       model,
       category: rawCategory,
-      curated_category: rawCategory, // safe default
+      curated_category: rawCategory,
 
       retail_price: Number(row["Retail_Price"]) || undefined,
       minimum_price: Number(row["Minimum_Price"]) || undefined,
