@@ -1,9 +1,15 @@
 import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://reliance.tajallis.com.pk";
+  const site = process.env.SITE_URL || "https://reliance.tajallis.com.pk";
   return {
-    rules: [{ userAgent: "*", allow: "/" }],
-    sitemap: `${site}/sitemap.xml`
+    rules: [
+      {
+        userAgent: "*",
+        allow: ["/", "/p/", "/c/"],
+        disallow: ["/api/"],
+      },
+    ],
+    sitemap: `${site}/sitemap.xml`,
   };
 }
