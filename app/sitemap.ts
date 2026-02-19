@@ -1,21 +1,26 @@
+import type { MetadataRoute } from "next";
 import { fetchProducts } from "../lib/products";
-import { CURATED_CATEGORIES } from "../lib/curatedCategories";
 
-export default async function sitemap() {
-  const base = "https://reliance.tajallis.com.pk";
-  const now = new Date();
-
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://reliance.tajallis.com.pk";
   const products = await fetchProducts();
 
-  const categoryEntries = CURATED_CATEGORIES.map((c) => ({
-    url: `${base}/c/${c.key}`,
-    lastModified: now,
-  }));
+  const now = new Date();
 
-  const productEntries = products.map((p) => ({
-    url: `${base}/p/${p.slug}`,
-    lastModified: now,
-  }));
+  const urls: MetadataRoute.Sitemap = [
+    { url: `${site}/`, lastModified: now },
+    { url: `${site}/portal`, lastModified: now }
+  ];
 
-  return [{ url: base, lastModified: now }, ...categoryEntries, ...productEntries];
+  for (const p of products) {
+    urls.push({ url: `${site}/p/${encodeURIComponent(p.product_key)}`, lastModified: now });
+  }
+
+  // category pages (optional)
+  const cats = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+  for (const c of cats) {
+    urls.push({ url: `${site}/c/${encodeURIComponent(c)}`, lastModified: now });
+  }
+
+  return urls;
 }
