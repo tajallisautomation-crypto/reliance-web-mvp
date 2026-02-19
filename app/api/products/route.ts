@@ -1,4 +1,4 @@
-import { parseCSV } from "../../../lib/csv";
+import { parseCsv } from "../../../lib/csv";
 import { curatedKeyFromRawCategory, curatedLabelFromKey } from "../../../lib/categoryMap";
 import { slugify, CSV_URL } from "../../../lib/products";
 
