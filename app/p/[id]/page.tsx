@@ -1,4 +1,4 @@
-import { fetchProductBySlug, isDirectImageUrl } from "../../../lib/products";
+import { fetchProductBySlug, safeImage } from "../../../lib/products";
 
 export const dynamic = "force-dynamic";
 
@@ -6,33 +6,39 @@ function ceilTo500(n: number) {
   return Math.ceil(n / 500) * 500;
 }
 
-const CREDIT_MULTIPLIERS: Record<number, number> = { 3: 1.12, 6: 1.2, 12: 1.35 };
+const CREDIT_MULTIPLIERS: Record<number, number> = {
+  3: 1.12,
+  6: 1.20,
+  12: 1.35,
+};
 
 function buildLongDescription(p: any) {
-  if (p.description && p.description.length > 80) return p.description;
+  const d = String(p.description || "").trim();
+  if (d && d.length > 120) return d;
 
-  return `${p.brand} ${p.model} is curated for Pakistan’s real usage conditions—voltage variation, heavy daily load, and serviceability.
-You get predictable performance, warranty-backed support, and WhatsApp order handling for fast coordination.
-If you want a “safe pick” with reliable after-sales, this model is selected for that exact purpose.`;
+  return `${p.brand} ${p.model} is a practical, warranty-backed choice selected for Pakistan’s real usage conditions: voltage variation, heavy daily load, and serviceability.
+It is best suited for customers who want predictable performance and straightforward after-sales support from Tajalli’s Home Collection.
+
+If you want a safe, value-stable option with clear availability and WhatsApp support, this model is a strong pick.`;
 }
 
 function buildUseCase(p: any) {
   const cat = String(p.category || "").toLowerCase();
-  if (cat.includes("air")) return "Ideal for bedrooms, lounges, and offices where reliable cooling and efficiency matter.";
+  if (cat.includes("air")) return "Ideal for bedrooms, lounges, and offices where reliable cooling and stable performance matter.";
   if (cat.includes("washing")) return "Ideal for family households needing consistent wash performance and durability.";
-  if (cat.includes("battery") || cat.includes("solar")) return "Ideal for backup power setups, solar storage, and load-shedding protection.";
-  if (String(p.type || "").toUpperCase() === "SERVICE") return "Ideal for customers needing expert installation/service with coordination and after-sales support.";
-  return "Ideal for homes and offices looking for dependable everyday performance with warranty-backed support.";
+  if (cat.includes("battery") || cat.includes("solar") || cat.includes("inverter")) return "Ideal for backup power setups, solar storage, and load-shedding protection.";
+  if (cat.includes("refriger")) return "Ideal for households needing stable cooling, storage capacity, and day-to-day efficiency.";
+  return "Ideal for households and offices looking for dependable everyday performance with warranty-backed support.";
 }
 
 export async function generateMetadata({ params }: any) {
   const p = await fetchProductBySlug(params.id);
   if (!p) return { title: "Product not found - Reliance by Tajalli’s" };
 
-  return {
-    title: p.seo_title || `${p.brand} ${p.model} Price in Pakistan | Reliance by Tajalli’s`,
-    description: (p.seo_description || buildLongDescription(p)).slice(0, 160)
-  };
+  const title = `${p.brand} ${p.model} Price in Pakistan | Reliance by Tajalli’s`;
+  const description = buildLongDescription(p).slice(0, 160);
+
+  return { title, description };
 }
 
 export default async function ProductPage({ params }: any) {
@@ -48,22 +54,18 @@ export default async function ProductPage({ params }: any) {
   }
 
   const price = p.retail_price ?? 0;
-  const adminWa = process.env.NEXT_PUBLIC_ADMIN_WA || "923354266238";
+
+  const adminWhatsapp = process.env.ADMIN_WHATSAPP || "923354266238";
   const msg = `I want: ${p.brand} ${p.model}\nPrice: PKR ${price}\nProduct Key: ${p.product_key}`;
-  const wa = `https://wa.me/${adminWa}?text=${encodeURIComponent(msg)}`;
+  const wa = `https://wa.me/${adminWhatsapp}?text=${encodeURIComponent(msg)}`;
 
   const longDesc = buildLongDescription(p);
   const useCase = buildUseCase(p);
 
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "https://reliance.tajallis.com.pk";
+  const img1 = safeImage(p.image_url_1);
+  const img2 = safeImage(p.image_url_2);
 
-  const faq = [
-    p.faq_q1 && p.faq_a1 ? { q: p.faq_q1, a: p.faq_a1 } : null,
-    p.faq_q2 && p.faq_a2 ? { q: p.faq_q2, a: p.faq_a2 } : null,
-    p.faq_q3 && p.faq_a3 ? { q: p.faq_q3, a: p.faq_a3 } : null
-  ].filter(Boolean) as Array<{q:string,a:string}>;
-
-  const jsonLdProduct = {
+  const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: `${p.brand} ${p.model}`,
@@ -75,34 +77,21 @@ export default async function ProductPage({ params }: any) {
       priceCurrency: "PKR",
       price: String(price),
       availability: "https://schema.org/InStock",
-      url: `${site}/p/${encodeURIComponent(p.product_key)}`
-    }
+      url: `${process.env.SITE_URL || "https://reliance.tajallis.com.pk"}/p/${p.slug}`,
+    },
   };
-
-  const jsonLdFaq = faq.length ? {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: faq.map(x => ({
-      "@type": "Question",
-      name: x.q,
-      acceptedAnswer: { "@type": "Answer", text: x.a }
-    }))
-  } : null;
 
   return (
     <main className="max-w-6xl mx-auto p-6">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdProduct) }} />
-      {jsonLdFaq ? (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdFaq) }} />
-      ) : null}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <a href="/" className="text-sm underline">← Back to catalogue</a>
 
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="rounded-2xl border border-neutral-200 bg-white p-4">
           <div className="h-80 bg-neutral-100 flex items-center justify-center rounded-xl overflow-hidden">
-            {isDirectImageUrl(p.image_url_1) ? (
-              <img loading="lazy" src={p.image_url_1} alt={p.model} className="h-full w-full object-contain" />
+            {img1.isDirect ? (
+              <img src={img1.src} alt={p.model} loading="lazy" className="h-full w-full object-contain" />
             ) : (
               <div className="text-xs text-neutral-600 text-center px-6">
                 No direct image available.
@@ -115,26 +104,49 @@ export default async function ProductPage({ params }: any) {
             )}
           </div>
 
-          <div className="mt-3 text-xs text-neutral-600 flex justify-between">
-            <div>Warranty: {p.warranty || "—"}</div>
-            <div>{p.availability || "In Stock"}</div>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="rounded-xl border bg-white p-3 text-xs">
+              <div className="text-neutral-500">Warranty</div>
+              <div className="font-medium mt-1">{p.warranty || "—"}</div>
+            </div>
+            <div className="rounded-xl border bg-white p-3 text-xs">
+              <div className="text-neutral-500">Availability</div>
+              <div className="font-medium mt-1">{p.availability || "In Stock"}</div>
+            </div>
           </div>
+
+          {img2.src ? (
+            <div className="mt-4 rounded-xl border bg-neutral-50 p-3 text-xs">
+              Secondary image:
+              <div className="mt-2">
+                {img2.isDirect ? (
+                  <img src={img2.src} alt={`${p.model} image 2`} loading="lazy" className="w-full h-40 object-contain rounded-lg bg-white" />
+                ) : (
+                  <a className="underline" href={p.image_url_2} target="_blank">Open image search</a>
+                )}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-          <div className="text-xs text-neutral-600">{p.category} {p.type === "SERVICE" ? "• Service" : ""}</div>
+          <div className="text-xs text-neutral-600">{p.category}</div>
           <h1 className="mt-1 text-2xl font-semibold">{p.brand} {p.model}</h1>
 
           <div className="mt-3 text-2xl font-semibold">
-            PKR {price || "—"}
+            PKR {price}
           </div>
 
-          <div className="mt-4 flex flex-col sm:flex-row gap-3">
-            <a href={wa} target="_blank" className="rounded-xl bg-green-600 text-white px-5 py-3 text-sm font-medium hover:bg-green-700 text-center">
+          <div className="mt-2 text-sm text-neutral-600">
+            Cash floor: {p.cash_floor ? `PKR ${p.cash_floor}` : "—"}
+          </div>
+
+          <div className="mt-4 flex gap-3">
+            <a href={wa} target="_blank" className="rounded-xl bg-green-600 text-white px-5 py-3 text-sm font-medium hover:bg-green-700">
               WhatsApp to order
             </a>
-            <a href={`/portal`} className="rounded-xl border border-neutral-300 px-5 py-3 text-sm hover:bg-neutral-50 text-center">
-              Customer Portal
+            <a href="/" className="rounded-xl border border-neutral-300 px-5 py-3 text-sm hover:bg-neutral-50">
+              Continue browsing
             </a>
           </div>
 
@@ -165,20 +177,6 @@ export default async function ProductPage({ params }: any) {
               <div className="mt-2 text-sm text-neutral-700">{p.tags}</div>
             </div>
           ) : null}
-
-          {faq.length ? (
-            <div className="mt-8">
-              <h2 className="text-lg font-semibold">FAQs</h2>
-              <div className="mt-3 space-y-4">
-                {faq.map((x, i) => (
-                  <div key={i} className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-                    <div className="font-medium text-sm">{x.q}</div>
-                    <div className="text-sm text-neutral-700 mt-1">{x.a}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
         </section>
 
         <section className="rounded-2xl border border-neutral-200 bg-white p-6">
@@ -199,11 +197,8 @@ export default async function ProductPage({ params }: any) {
             })}
           </div>
 
-          <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-4">
-            <div className="text-sm font-semibold">Ask about this item</div>
-            <a className="mt-2 block text-sm underline" href={wa} target="_blank">
-              WhatsApp with Product Key pre-filled
-            </a>
+          <div className="mt-4 text-xs text-neutral-500">
+            For exact approval and terms, message us on WhatsApp with the Product Key.
           </div>
         </section>
       </div>
