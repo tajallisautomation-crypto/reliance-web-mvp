@@ -3,6 +3,10 @@ import { parseCsv } from "./csv";
 export const CSV_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAOZShzlaPpI0_7RT2xIU1178t-BTsoqf7FBYUk9NZeG0n2NiHebAU1KxkFg6LTm0YQeyhytLESTWC/pub?gid=2007149046&single=true&output=csv";
 
+/* ===================================================== */
+/* TYPES */
+/* ===================================================== */
+
 export interface Product {
   product_key: string;
   slug: string;
@@ -26,13 +30,17 @@ export interface Product {
   specifications?: string;
   tags?: string;
 
-  updated_at?: string;   // ← FIX ADDED
+  updated_at?: string;
 }
 
 export type SafeImage = {
   src: string;
   isDirect: boolean;
 };
+
+/* ===================================================== */
+/* BASIC HELPERS */
+/* ===================================================== */
 
 export function slugify(value: string) {
   return encodeURIComponent(
@@ -60,6 +68,46 @@ export function safeImage(url?: string): SafeImage {
   };
 }
 
+/* ===================================================== */
+/* SEARCH + MATCH LOGIC (FIX FOR YOUR ERROR) */
+/* ===================================================== */
+
+export function suggest(products: Product[], query: string): Product[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+
+  return products
+    .filter(p =>
+      `${p.brand} ${p.model} ${p.category} ${p.tags}`
+        .toLowerCase()
+        .includes(q)
+    )
+    .slice(0, 6);
+}
+
+export function bestMatch(products: Product[], query: string): Product | null {
+  const q = query.trim().toLowerCase();
+  if (!q) return null;
+
+  const exact = products.find(p =>
+    `${p.brand} ${p.model}`.toLowerCase() === q
+  );
+
+  if (exact) return exact;
+
+  const partial = products.find(p =>
+    `${p.brand} ${p.model} ${p.category}`
+      .toLowerCase()
+      .includes(q)
+  );
+
+  return partial || null;
+}
+
+/* ===================================================== */
+/* FETCH LOGIC */
+/* ===================================================== */
+
 function toNum(v: any): number | undefined {
   const s = String(v ?? "").replace(/,/g, "").trim();
   if (!s) return undefined;
@@ -84,7 +132,8 @@ export async function fetchProducts(): Promise<Product[]> {
       const slug = slugify(product_key);
 
       const availability =
-        String(row["Availability"] || row["Availibility"] || "").trim() || "In Stock";
+        String(row["Availability"] || row["Availibility"] || "").trim() ||
+        "In Stock";
 
       return {
         product_key,
@@ -113,12 +162,15 @@ export async function fetchProducts(): Promise<Product[]> {
     .filter(Boolean) as Product[];
 }
 
-export async function fetchProductBySlug(slug: string): Promise<Product | null> {
+export async function fetchProductBySlug(
+  slug: string
+): Promise<Product | null> {
   const products = await fetchProducts();
   const decoded = decodeURIComponent(slug);
+
   return (
-    products.find((p) => p.slug === slug) ||
-    products.find((p) => p.product_key === decoded) ||
+    products.find(p => p.slug === slug) ||
+    products.find(p => p.product_key === decoded) ||
     null
   );
 }
