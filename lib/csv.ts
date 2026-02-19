@@ -1,42 +1,13 @@
-export function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let cur = "";
-  let inQuotes = false;
+export function parseCsv(text: string) {
+  const lines = text.split("\n").filter(Boolean);
+  const headers = lines[0].split(",").map(h => h.trim());
 
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-
-    if (ch === '"') {
-      if (inQuotes && text[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (!inQuotes && ch === ",") {
-      row.push(cur);
-      cur = "";
-      continue;
-    }
-
-    if (!inQuotes && (ch === "\n" || ch === "\r")) {
-      if (ch === "\r" && text[i + 1] === "\n") i++;
-      row.push(cur);
-      cur = "";
-      rows.push(row);
-      row = [];
-      continue;
-    }
-
-    cur += ch;
-  }
-
-  row.push(cur);
-  rows.push(row);
-
-  return rows.filter(r => r.some(cell => String(cell || "").trim() !== ""));
+  return lines.slice(1).map(line => {
+    const values = line.split(",");
+    const obj: any = {};
+    headers.forEach((header, i) => {
+      obj[header] = values[i]?.trim() || "";
+    });
+    return obj;
+  });
 }
