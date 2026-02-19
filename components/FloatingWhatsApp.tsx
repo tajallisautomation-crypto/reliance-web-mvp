@@ -1,19 +1,12 @@
-// components/FloatingWhatsApp.tsx
 "use client";
 
-export default function FloatingWhatsApp({ numberDigits }: { numberDigits: string }) {
-  const href = `https://wa.me/${numberDigits}`;
-
+export default function FloatingWhatsApp() {
   return (
     <a
-      href={href}
+      href="https://wa.me/923354266238"
       target="_blank"
-      className="fixed bottom-5 right-5 z-50 rounded-full bg-green-600 text-white px-5 py-3 shadow-lg hover:bg-green-700"
-      onClick={() => {
-        // Plausible event
-        // @ts-ignore
-        window.plausible?.("WhatsApp_Click", { props: { placement: "floating" } });
-      }}
+      className="fixed bottom-5 right-5 z-50 btn glass-strong shadow-soft px-4 py-3 text-sm hover:bg-white"
+      aria-label="WhatsApp"
     >
       WhatsApp
     </a>
