@@ -1,132 +1,123 @@
-import { parseCSV } from "./csv";
-import { curatedKeyFromRawCategory, curatedLabelFromKey } from "./categoryMap";
+import { parseCsv } from "./csv";
 
 export type Product = {
-  slug: string;
   product_key: string;
+  slug: string;
+
   brand: string;
   category: string;
-  curated_category_key: string;
-  curated_category_label: string;
+  type: string; // PRODUCT | SERVICE
   model: string;
 
   retail_price: number | null;
-  minimum_price: number | null;
+  cash_floor: number | null;
 
-  availability: string;
   warranty: string;
+  availability: string;
+
+  tags: string;
+  description: string;
+  specifications: string;
 
   image_url_1: string;
   image_url_2: string;
 
-  description: string;
-  specifications: string;
-  tags: string;
+  seo_title?: string;
+  seo_description?: string;
+
+  faq_q1?: string; faq_a1?: string;
+  faq_q2?: string; faq_a2?: string;
+  faq_q3?: string; faq_a3?: string;
 };
 
-export const CSV_URL =
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQAOZShzlaPpI0_7RT2xIU1178t-BTsoqf7FBYUk9NZeG0n2NiHebAU1KxkFg6LTm0YQeyhytLESTWC/pub?gid=2007149046&single=true&output=csv";
-
-function toNum(v: any): number | null {
-  const n = Number(String(v ?? "").replace(/[^\d.]/g, ""));
-  return Number.isFinite(n) && !Number.isNaN(n) ? n : null;
-}
-
-export function slugify(text: string) {
-  return String(text)
+export function slugify(input: string) {
+  return String(input || "")
     .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .trim();
+    .trim()
+    .replace(/[^\w\s|]/g, "")
+    .replace(/\s+/g, "-");
 }
 
-export function isDirectImageUrl(url: string) {
-  const u = String(url || "").trim();
-  return /^https?:\/\//i.test(u) && /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(u);
+export function isDirectImageUrl(url?: string) {
+  if (!url) return false;
+  const u = url.toLowerCase();
+  return u.startsWith("http") && (u.endsWith(".jpg") || u.endsWith(".jpeg") || u.endsWith(".png") || u.endsWith(".webp"));
 }
 
-let _mem: { at: number; products: Product[] } | null = null;
-const MEM_CACHE_MS = 60_000;
-const REVALIDATE_SECONDS = 180;
+function toNum(v: string) {
+  const n = Number(String(v || "").replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
 
 export async function fetchProducts(): Promise<Product[]> {
-  // fast in-memory cache inside a warm lambda
-  if (_mem && Date.now() - _mem.at < MEM_CACHE_MS) return _mem.products;
+  const csvUrl = process.env.GOOGLE_FEED_CSV_URL!;
+  if (!csvUrl) return [];
 
-  // Next.js data cache with revalidate (Vercel-friendly)
-  const res = await fetch(CSV_URL, {
-    next: { revalidate: REVALIDATE_SECONDS },
-  });
-
+  // edge-friendly fetch + revalidate caching
+  const res = await fetch(csvUrl, { next: { revalidate: 180 } });
   const text = await res.text();
-  const rows = parseCSV(text);
-  if (rows.length < 2) {
-    _mem = { at: Date.now(), products: [] };
-    return [];
-  }
+  const rows = parseCsv(text);
+  if (rows.length < 2) return [];
 
-  const headers = rows[0].map((h) => h.trim().toLowerCase());
-  const idx = new Map<string, number>();
-  headers.forEach((h, i) => idx.set(h, i));
-  const get = (r: string[], h: string) => r[idx.get(h) ?? -1] ?? "";
+  const headers = rows[0].map(h => String(h || "").trim().toLowerCase());
+  const idx = (name: string) => headers.indexOf(name);
+
+  const get = (r: string[], name: string) => {
+    const i = idx(name);
+    return i >= 0 ? (r[i] ?? "") : "";
+  };
 
   const out: Product[] = [];
-  const seen = new Set<string>();
 
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
+    const product_key = String(get(r, "product_key") || get(r, "product_key".toLowerCase()) || "").trim();
+    if (!product_key) continue;
+
     const brand = String(get(r, "brand")).trim();
-    const model = String(get(r, "model")).trim();
     const category = String(get(r, "category")).trim();
+    const type = String(get(r, "type") || "PRODUCT").trim() || "PRODUCT";
+    const model = String(get(r, "model")).trim();
 
-    if (!brand || !model) continue;
+    const p: Product = {
+      product_key,
+      slug: encodeURIComponent(product_key), // safe slug; matches your existing routes
 
-    const slugBase = slugify(`${brand} ${model}`);
-    const slug = seen.has(slugBase) ? `${slugBase}-${i}` : slugBase;
-    seen.add(slug);
+      brand, category, type, model,
 
-    const curated_category_key = curatedKeyFromRawCategory(category);
-    const curated_category_label = curatedLabelFromKey(curated_category_key);
+      retail_price: toNum(get(r, "retail_price")),
+      cash_floor: toNum(get(r, "cash_floor")),
 
-    const retail_price = toNum(get(r, "retail_price")) ?? toNum(get(r, "retail")) ?? null;
-    const minimum_price =
-      toNum(get(r, "cash_floor")) ??
-      toNum(get(r, "minimum_price")) ??
-      toNum(get(r, "min_price")) ??
-      null;
-
-    const availability =
-      String(get(r, "availability")).trim() ||
-      String(get(r, "availibility")).trim() ||
-      "In Stock";
-
-    out.push({
-      slug,
-      product_key: String(get(r, "product_key") || model).trim(),
-      brand,
-      model,
-      category,
-      curated_category_key,
-      curated_category_label,
-      retail_price,
-      minimum_price,
-      availability,
       warranty: String(get(r, "warranty")).trim(),
-      image_url_1: String(get(r, "image_url_1")).trim(),
-      image_url_2: String(get(r, "image_url_2")).trim(),
+      availability: String(get(r, "availability")).trim(),
+
+      tags: String(get(r, "tags")).trim(),
       description: String(get(r, "description")).trim(),
       specifications: String(get(r, "specifications")).trim(),
-      tags: String(get(r, "tags")).trim(),
-    });
+
+      image_url_1: String(get(r, "image_url_1")).trim(),
+      image_url_2: String(get(r, "image_url_2")).trim(),
+
+      seo_title: String(get(r, "seo_title")).trim(),
+      seo_description: String(get(r, "seo_description")).trim(),
+
+      faq_q1: String(get(r, "faq_q1")).trim(),
+      faq_a1: String(get(r, "faq_a1")).trim(),
+      faq_q2: String(get(r, "faq_q2")).trim(),
+      faq_a2: String(get(r, "faq_a2")).trim(),
+      faq_q3: String(get(r, "faq_q3")).trim(),
+      faq_a3: String(get(r, "faq_a3")).trim()
+    };
+
+    out.push(p);
   }
 
-  _mem = { at: Date.now(), products: out };
   return out;
 }
 
 export async function fetchProductBySlug(slug: string): Promise<Product | null> {
   const products = await fetchProducts();
-  const normalized = String(slug).trim().toLowerCase();
-  return products.find((p) => p.slug === normalized) || null;
+  // slug is URL-encoded product_key in this build
+  const decoded = decodeURIComponent(slug);
+  return products.find(p => p.product_key === decoded) || null;
 }
