@@ -11,6 +11,7 @@ export interface Product {
   brand: string;
   model: string;
   category: string;
+  curated_category?: string;
 
   cost_price?: number;
   minimum_price?: number;

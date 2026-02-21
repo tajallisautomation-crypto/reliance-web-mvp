@@ -1,8 +1,8 @@
-import Hero from "src/components/Hero";
-import LogoBannerRail from "src/components/LogoBannerRail";
-import PromoBanners from "src/components/PromoBanners";
-import CatalogClient from "src/components/CatalogClient";
-import { fetchProducts } from "../lib/products";
+import Hero from "@/components/Hero";
+import LogoBannerRail from "@/components/LogoBannerRail";
+import PromoBanners from "@/components/PromoBanners";
+import CatalogClient from "@/components/CatalogClient";
+import { fetchProducts } from "@/lib/products";
 
 export default async function Page() {
   const products = await fetchProducts();
