@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 export default function Navbar() {
@@ -21,13 +22,22 @@ export default function Navbar() {
     >
       <div className="mx-auto max-w-7xl px-4">
         <div className="h-16 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2">
-            <div className="h-9 w-9 rounded-2xl bg-black text-white grid place-items-center text-sm">
-              R
+          <a href="/" className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-2xl bg-white/70 border border-white/70 overflow-hidden grid place-items-center">
+              <Image
+                src="/logo.svg"
+                alt="Reliance by Tajalli’s"
+                width={40}
+                height={40}
+                priority
+              />
             </div>
+
             <div className="leading-tight">
               <div className="text-sm font-semibold">Reliance by Tajalli’s</div>
-              <div className="text-[11px] text-neutral-600">Appliances • Solar • Services</div>
+              <div className="text-[11px] text-neutral-600">
+                Appliances • Solar • Services
+              </div>
             </div>
           </a>
 
@@ -42,6 +52,7 @@ export default function Navbar() {
               className="btn px-4 py-2 text-sm glass-strong hover:bg-white"
               href="https://wa.me/923354266238"
               target="_blank"
+              rel="noreferrer"
             >
               WhatsApp
             </a>
