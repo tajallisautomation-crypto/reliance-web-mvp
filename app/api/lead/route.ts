@@ -1,21 +1,27 @@
 import { NextResponse } from "next/server";
 
-export const runtime = "nodejs";
+const LEAD_ENDPOINT = process.env.LEADS_WEBHOOK_URL; 
+// Example: your Apps Script Web App exec URL with path=lead
 
 export async function POST(req: Request) {
+  if (!LEAD_ENDPOINT) {
+    return NextResponse.json({ ok: false, error: "Missing LEADS_WEBHOOK_URL" }, { status: 500 });
+  }
+
   const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+  if (!body?.phone) return NextResponse.json({ ok: false, error: "Missing phone" }, { status: 400 });
 
-  const base = process.env.APPS_SCRIPT_URL!;
-  const token = process.env.APPS_SCRIPT_TOKEN!;
-
-  const r = await fetch(`${base}?route=lead&token=${encodeURIComponent(token)}`, {
+  const r = await fetch(LEAD_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
     cache: "no-store",
-  });
+  }).catch(() => null);
 
-  const out = await r.json().catch(() => ({ ok: false }));
-  return NextResponse.json(out);
+  if (!r || !r.ok) {
+    return NextResponse.json({ ok: false, error: "Lead forward failed" }, { status: 502 });
+  }
+
+  const out = await r.json().catch(() => ({ ok: true }));
+  return NextResponse.json({ ok: !!out?.ok, ...out });
 }
