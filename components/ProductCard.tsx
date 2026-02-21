@@ -93,3 +93,13 @@ return (
     {/* …other fields… */}
   </div>
 );
+.no-image {
+  width: 100%;
+  height: 140px;
+  background: #f2f2f2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #777;
+  font-size: 14px;
+}
