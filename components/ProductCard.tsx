@@ -79,3 +79,17 @@ export default function ProductCard({
     </div>
   );
 }
+const img1 = safeImage(product.image_url_1);
+const img2 = safeImage(product.image_url_2);
+const imageToShow = img1.isDirect ? img1.src : img2.isDirect ? img2.src : "";
+
+return (
+  <div className="product-card">
+    {imageToShow ? (
+      <img src={imageToShow} alt={product.model} className="product-image" />
+    ) : (
+      <div className="no-image">Image Not Available</div>
+    )}
+    {/* …other fields… */}
+  </div>
+);
