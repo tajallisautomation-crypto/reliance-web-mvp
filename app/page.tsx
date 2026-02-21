@@ -1,6 +1,6 @@
 import Hero from "./components/Hero";
-import LogoBannerRail from "../components/LogoBannerRail";
-import PromoBanners from "../components/PromoBanners";
+import LogoBannerRail from "@/components/LogoBannerRail";
+import PromoBanners from "@/components/PromoBanners";
 import CatalogClient from "./components/CatalogClient";
 import { fetchProducts } from "../lib/products";
 
