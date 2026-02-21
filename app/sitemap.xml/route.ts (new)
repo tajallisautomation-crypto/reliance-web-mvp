@@ -1,0 +1,54 @@
+import { NextResponse } from "next/server";
+import { safeImage } from "@/lib/products";
+
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || "https://reliance.tajallis.com.pk";
+const FEED = process.env.NEXT_PUBLIC_PRODUCTS_FEED_URL; // your Apps Script /api/products endpoint
+
+export async function GET() {
+  if (!FEED) {
+    return new NextResponse("Missing NEXT_PUBLIC_PRODUCTS_FEED_URL", { status: 500 });
+  }
+
+  const r = await fetch(FEED, { cache: "no-store" });
+  if (!r.ok) return new NextResponse("Feed fetch failed", { status: 502 });
+
+  const data = await r.json();
+  const products = Array.isArray(data?.products) ? data.products : (Array.isArray(data) ? data : []);
+
+  const urls = products.map((p: any) => {
+    const loc = `${SITE}/p/${p.slug}`;
+    const img1 = safeImage(p.image_url_1);
+    const img2 = safeImage(p.image_url_2);
+    const imgs = [img1, img2].filter(x => x.isDirect && x.src).slice(0, 2);
+
+    const imageXml = imgs.length
+      ? imgs.map(x => `<image:image><image:loc>${escapeXml(x.src)}</image:loc></image:image>`).join("")
+      : "";
+
+    return `<url><loc>${escapeXml(loc)}</loc>${imageXml}</url>`;
+  });
+
+  const xml =
+    `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" ` +
+    `xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">` +
+    urls.join("") +
+    `</urlset>`;
+
+  return new NextResponse(xml, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/xml; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+function escapeXml(s: string) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
