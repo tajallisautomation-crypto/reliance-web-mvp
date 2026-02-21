@@ -62,3 +62,14 @@ body {
 .btn:active {
   transform: scale(0.98);
 }
+
+module.exports = {
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "drive.google.com" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      { protocol: "https", hostname: "cdn.daraz.pk" },
+      { protocol: "https", hostname: "i.daraz.pk" }
+    ],
+  },
+};
