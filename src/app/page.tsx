@@ -1,3 +1,7 @@
+export const dynamic = "force-dynamic";
+
+import { fetchFeed } from '@/lib/googleSheets'; // Your existing imports...
+// ... rest of your code
 import Hero from "@/components/Hero";
 import LogoBannerRail from "@/components/LogoBannerRail";
 import PromoBanners from "@/components/PromoBanners";
